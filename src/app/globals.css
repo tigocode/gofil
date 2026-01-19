@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0b1121; /* Azul muito escuro (quase preto) */
+  --foreground: #f8fafc;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+/* Aqui criamos o estilo de vidro e rolagem */
+@layer components {
+  .glass-panel {
+    @apply bg-[#1e293b]/60 backdrop-blur-md border border-slate-700/50 shadow-xl;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

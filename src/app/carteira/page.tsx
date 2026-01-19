@@ -1,0 +1,120 @@
+'use client';
+
+import { MOCK_WALLET, MOCK_FIIS } from "@/src/data/mocks";
+import WalletRow from "@/src/components/WalletRow";
+import { analyzeFII } from "@/src/utils/fii-analyzer";
+import { FaWallet, FaHandHoldingDollar, FaChartSimple } from "react-icons/fa6";
+
+export default function CarteiraPage() {
+  
+  // Lógica de Consolidação dos Dados
+  let totalPatrimony = 0;
+  let totalIncome = 0;
+  let weightedScoreSum = 0;
+
+  // Cruzamos os dados da carteira com os dados de mercado
+  const walletFullData = MOCK_WALLET.map(item => {
+    const marketData = MOCK_FIIS.find(f => f.ticker === item.ticker);
+    
+    if (!marketData) return null; // Segurança caso o ticker não exista
+
+    const currentVal = item.qty * marketData.price;
+    const lastDiv = marketData.dividends[marketData.dividends.length - 1];
+    const income = item.qty * lastDiv;
+    const analysis = analyzeFII(marketData);
+
+    // Acumuladores
+    totalPatrimony += currentVal;
+    totalIncome += income;
+    weightedScoreSum += (analysis.score * currentVal);
+
+    return { walletItem: item, marketData };
+  }).filter(item => item !== null); // Remove nulos
+
+  // Cálculo final do Score Ponderado (Score médio baseado no dinheiro investido)
+  const portfolioScore = totalPatrimony > 0 ? Math.round(weightedScoreSum / totalPatrimony) : 0;
+  
+  // Cor do Score Geral
+  let scoreColor = 'text-red-400';
+  if (portfolioScore > 70) scoreColor = 'text-emerald-400';
+  else if (portfolioScore > 50) scoreColor = 'text-amber-400';
+
+  return (
+    <main className="min-h-screen p-6 md:p-10">
+      <div className="max-w-7xl mx-auto">
+
+        {/* Header */}
+        <div className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">Minha Carteira</h1>
+            <p className="text-slate-400 text-sm">Acompanhamento consolidado dos seus ativos.</p>
+          </div>
+          <button className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg text-sm font-bold transition-all shadow-lg shadow-blue-500/20">
+            + Novo Aporte
+          </button>
+        </div>
+
+        {/* Cards de Resumo (KPIs) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          
+          {/* Card 1: Patrimônio */}
+          <div className="glass-panel p-6 rounded-xl relative overflow-hidden border-l-4 border-l-blue-500">
+            <div className="relative z-10">
+              <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Patrimônio Total</p>
+              <h2 className="text-3xl font-bold text-white">
+                R$ {totalPatrimony.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </h2>
+            </div>
+            <FaWallet className="absolute right-4 bottom-4 text-slate-700/20 text-6xl" />
+          </div>
+
+          {/* Card 2: Renda Mensal */}
+          <div className="glass-panel p-6 rounded-xl relative overflow-hidden border-l-4 border-l-emerald-500">
+            <div className="relative z-10">
+              <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Renda Mensal Est.</p>
+              <h2 className="text-3xl font-bold text-white">
+                R$ {totalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </h2>
+              <p className="text-[10px] text-emerald-400 font-bold mt-1">
+                Yield Médio: {totalPatrimony > 0 ? ((totalIncome * 12 / totalPatrimony) * 100).toFixed(2) : 0}% a.a.
+              </p>
+            </div>
+            <FaHandHoldingDollar className="absolute right-4 bottom-4 text-slate-700/20 text-6xl" />
+          </div>
+
+          {/* Card 3: Score da Carteira */}
+          <div className="glass-panel p-6 rounded-xl relative overflow-hidden border-l-4 border-l-amber-500">
+            <div className="relative z-10">
+              <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Qualidade da Carteira</p>
+              <h2 className={`text-3xl font-bold ${scoreColor}`}>
+                {portfolioScore} <span className="text-sm text-slate-500 font-normal">/ 100</span>
+              </h2>
+              <p className="text-[10px] text-slate-500 font-medium mt-1">Média ponderada pelo valor investido</p>
+            </div>
+            <FaChartSimple className="absolute right-4 bottom-4 text-slate-700/20 text-6xl" />
+          </div>
+        </div>
+
+        {/* Lista de Ativos */}
+        <div className="flex flex-col gap-4">
+            <h3 className="text-slate-400 font-bold text-xs uppercase tracking-widest mb-2 px-1">Detalhamento dos Ativos</h3>
+            
+            {walletFullData.map((item, index) => (
+                <WalletRow 
+                    key={index} 
+                    walletItem={item!.walletItem} 
+                    fiiData={item!.marketData} 
+                />
+            ))}
+
+            {walletFullData.length === 0 && (
+                <div className="text-center py-20 text-slate-500 glass-panel rounded-xl">
+                    Sua carteira está vazia. Comece adicionando ativos!
+                </div>
+            )}
+        </div>
+
+      </div>
+    </main>
+  );
+}

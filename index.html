@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GO FIIs | Plataforma de Inteligência Imobiliária</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            dark: '#0f172a',
+                            card: '#1e293b',
+                            accent: '#3b82f6',
+                            success: '#10b981',
+                            warning: '#f59e0b',
+                            danger: '#ef4444',
+                            text: '#f8fafc',
+                            muted: '#94a3b8'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .nav-link.active {
+            background-color: #1e293b;
+            color: white;
+            border-color: #475569;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569; 
+        }
+        .animate-enter {
+            animation: fadeUp 0.5s ease-out forwards;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        @keyframes fadeUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* Input focus styles */
+        input:focus, select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans">
+
+    <!-- Navbar -->
+    <nav class="border-b border-slate-700 bg-brand-dark/95 sticky top-0 z-50 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('dashboard')">
+                    <div class="w-9 h-9 bg-brand-accent rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/30 hover:scale-105 transition-transform">
+                        GO
+                    </div>
+                    <span class="font-bold text-xl tracking-tight hidden sm:block">GO FIIs</span>
+                </div>
+                
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex ml-10 space-x-2">
+                    <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-link active px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:bg-slate-800">Dashboard</button>
+                    <button onclick="switchTab('portfolio')" id="nav-portfolio" class="nav-link text-brand-muted px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:bg-slate-800 hover:text-white">Minha Carteira</button>
+                    <button onclick="switchTab('ranking')" id="nav-ranking" class="nav-link text-brand-muted px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:bg-slate-800 hover:text-white">Ranking</button>
+                </div>
+
+                <!-- Search & Actions -->
+                <div class="flex items-center gap-3">
+                    <div class="relative hidden sm:block">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+                        <input type="text" id="searchInput" placeholder="Buscar Ticker..." 
+                            class="bg-slate-800 text-sm rounded-full pl-9 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent border border-slate-700 w-48 lg:w-64 transition-all placeholder-slate-500 text-white shadow-inner">
+                    </div>
+                    <!-- Botão Novo FII -->
+                    <button onclick="openRegisterModal()" class="bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-plus text-brand-accent"></i> <span class="hidden sm:inline">Novo FII</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile Tab Bar -->
+        <div class="md:hidden flex justify-around border-t border-slate-800 bg-brand-dark py-3 text-xs fixed bottom-0 left-0 right-0 z-50">
+             <button onclick="switchTab('dashboard')" class="flex flex-col items-center text-slate-400 hover:text-white transition-colors">
+                <i class="fa-solid fa-chart-line text-lg mb-1"></i> Dash
+             </button>
+             <button onclick="switchTab('portfolio')" class="flex flex-col items-center text-slate-400 hover:text-white transition-colors">
+                <i class="fa-solid fa-wallet text-lg mb-1"></i> Carteira
+             </button>
+             <button onclick="switchTab('ranking')" class="flex flex-col items-center text-slate-400 hover:text-white transition-colors">
+                <i class="fa-solid fa-list-ol text-lg mb-1"></i> Ranking
+             </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full mb-16 md:mb-0">
+        
+        <!-- DASHBOARD VIEW -->
+        <div id="dashboard-view" class="block animate-enter">
+            <div class="mb-8">
+                <h1 class="text-3xl font-bold mb-2">Análise de FIIs <span class="text-brand-accent">6 Pilares</span></h1>
+                <p class="text-brand-muted">Algoritmo que analisa P/VP, Yield, Vacância, Liquidez, Diversificação e Consistência.</p>
+            </div>
+
+            <!-- Filters -->
+            <div class="flex flex-wrap gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+                <button class="filter-btn active bg-slate-700 text-white px-4 py-1.5 rounded-full text-sm border border-slate-600 hover:bg-slate-600 transition-colors whitespace-nowrap font-medium" data-filter="all">Todos</button>
+                <button class="filter-btn bg-brand-dark text-brand-muted px-4 py-1.5 rounded-full text-sm border border-slate-700 hover:bg-slate-800 transition-colors whitespace-nowrap font-medium" data-filter="Logística">Logística</button>
+                <button class="filter-btn bg-brand-dark text-brand-muted px-4 py-1.5 rounded-full text-sm border border-slate-700 hover:bg-slate-800 transition-colors whitespace-nowrap font-medium" data-filter="Shopping">Shoppings</button>
+                <button class="filter-btn bg-brand-dark text-brand-muted px-4 py-1.5 rounded-full text-sm border border-slate-700 hover:bg-slate-800 transition-colors whitespace-nowrap font-medium" data-filter="Papel">Papéis</button>
+                <button class="filter-btn bg-brand-dark text-brand-muted px-4 py-1.5 rounded-full text-sm border border-slate-700 hover:bg-slate-800 transition-colors whitespace-nowrap font-medium" data-filter="Energia">Energia</button>
+                <button class="filter-btn bg-brand-dark text-brand-muted px-4 py-1.5 rounded-full text-sm border border-slate-700 hover:bg-slate-800 transition-colors whitespace-nowrap font-medium" data-filter="Híbrido">Híbridos</button>
+            </div>
+
+            <!-- Grid Container -->
+            <div id="fiiGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Cards injected JS -->
+            </div>
+        </div>
+
+        <!-- PORTFOLIO VIEW -->
+        <div id="portfolio-view" class="hidden animate-enter">
+            <div class="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                <div>
+                    <h1 class="text-3xl font-bold mb-2">Minha Carteira</h1>
+                    <p class="text-brand-muted">Acompanhamento consolidado dos ativos da carteira.</p>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-8">
+                <div class="glass-panel p-6 rounded-xl border-l-4 border-brand-accent relative overflow-hidden shadow-lg">
+                    <div class="relative z-10">
+                        <p class="text-sm text-brand-muted mb-1 font-medium uppercase tracking-wider">Patrimônio Total</p>
+                        <h2 class="text-3xl font-bold text-white" id="port-total">R$ 0,00</h2>
+                    </div>
+                    <i class="fa-solid fa-wallet absolute right-4 bottom-4 text-5xl text-slate-700/30"></i>
+                </div>
+                <div class="glass-panel p-6 rounded-xl border-l-4 border-brand-success relative overflow-hidden shadow-lg">
+                    <div class="relative z-10">
+                        <p class="text-sm text-brand-muted mb-1 font-medium uppercase tracking-wider">Renda Mensal Est.</p>
+                        <h2 class="text-3xl font-bold text-white" id="port-income">R$ 0,00</h2>
+                        <p class="text-xs text-brand-success mt-1 font-bold" id="port-yield">Yield Médio: 0.0%</p>
+                    </div>
+                    <i class="fa-solid fa-hand-holding-dollar absolute right-4 bottom-4 text-5xl text-slate-700/30"></i>
+                </div>
+                <div class="glass-panel p-6 rounded-xl border-l-4 border-brand-warning relative overflow-hidden shadow-lg">
+                    <div class="relative z-10">
+                        <p class="text-sm text-brand-muted mb-1 font-medium uppercase tracking-wider">Score da Carteira</p>
+                        <h2 class="text-3xl font-bold text-white" id="port-score">0</h2>
+                        <p class="text-xs text-brand-muted mt-1">Qualidade Ponderada</p>
+                    </div>
+                    <i class="fa-solid fa-chart-simple absolute right-4 bottom-4 text-5xl text-slate-700/30"></i>
+                </div>
+            </div>
+
+            <!-- Portfolio Grid -->
+            <div id="portfolioGrid" class="grid grid-cols-1 gap-4">
+                <!-- List Items injected JS -->
+            </div>
+        </div>
+
+        <!-- RANKING VIEW -->
+        <div id="ranking-view" class="hidden animate-enter">
+             <div class="mb-8">
+                <h1 class="text-3xl font-bold mb-2">Ranking Geral</h1>
+                <p class="text-brand-muted">Melhores ativos classificados pelo algoritmo.</p>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-700 shadow-xl">
+                <table class="w-full text-left bg-brand-card/50">
+                    <thead class="bg-slate-800 text-xs font-bold text-slate-300 uppercase tracking-wider">
+                        <tr>
+                            <th class="p-4 pl-6">#</th>
+                            <th class="p-4">Ativo</th>
+                            <th class="p-4 hidden sm:table-cell">Setor</th>
+                            <th class="p-4">Preço</th>
+                            <th class="p-4 hidden sm:table-cell">DY (12m)</th>
+                            <th class="p-4 hidden md:table-cell">P/VP</th>
+                            <th class="p-4 hidden sm:table-cell">Veredito</th>
+                            <th class="p-4 pr-6 text-right">Score</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rankingTableBody" class="divide-y divide-slate-700/50 text-sm">
+                        <!-- Rows injected via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Detail -->
+    <div id="detailModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onclick="closeModal()"></div>
+        <div class="relative w-full max-w-4xl bg-brand-card border border-slate-600 rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-enter">
+            <div id="modalContent" class="overflow-y-auto custom-scrollbar h-full"></div>
+        </div>
+    </div>
+
+    <!-- Modal Cadastro FII -->
+    <div id="registerModal" class="fixed inset-0 z-[110] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onclick="closeRegisterModal()"></div>
+        <div class="relative w-full max-w-2xl bg-brand-dark border border-slate-600 rounded-2xl shadow-2xl animate-enter overflow-hidden">
+            
+            <div class="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
+                <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-plus-circle text-brand-accent"></i> Cadastrar Novo FII
+                </h2>
+                <button onclick="closeRegisterModal()" class="text-slate-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="registerForm" onsubmit="handleRegister(event)" class="p-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <!-- Basic Info -->
+                    <div class="col-span-1 md:col-span-2">
+                        <h3 class="text-xs font-bold text-brand-muted uppercase tracking-wider mb-3">Informações Básicas</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm text-slate-300 mb-1">Ticker</label>
+                                <input type="text" name="ticker" placeholder="EX: HGLG11" required maxlength="6" 
+                                    class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white uppercase placeholder-slate-500 focus:border-brand-accent">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-slate-300 mb-1">Nome do Fundo</label>
+                                <input type="text" name="name" placeholder="Ex: CSHG Logística" required 
+                                    class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:border-brand-accent">
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-sm text-slate-300 mb-1">Setor</label>
+                                <select name="sector" required class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:border-brand-accent">
+                                    <option value="Logística">Logística</option>
+                                    <option value="Shopping">Shopping</option>
+                                    <option value="Papel">Papel</option>
+                                    <option value="Laje">Laje Corporativa</option>
+                                    <option value="Energia">Energia</option>
+                                    <option value="Híbrido">Híbrido</option>
+                                    <option value="Fiagro">Fiagro</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Market Data -->
+                    <div class="col-span-1 md:col-span-2">
+                        <h3 class="text-xs font-bold text-brand-muted uppercase tracking-wider mb-3 mt-2">Dados de Mercado</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm text-slate-300 mb-1">Preço Atual (R$)</label>
+                                <input type="number" name="price" step="0.01" placeholder="100.00" required 
+                                    class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:border-brand-accent">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-slate-300 mb-1">P/VP</label>
+                                <input type="number" name="pvp" step="0.01" placeholder="1.00" required 
+                                    class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:border-brand-accent">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-slate-300 mb-1">Dividend Yield 12m (%)</label>
+                                <input type="number" name="dy" step="0.01" placeholder="9.5" required 
+                                    class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:border-brand-accent">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Risk Metrics -->
+                    <div class="col-span-1 md:col-span-2">
+                        <h3 class="text-xs font-bold text-brand-muted uppercase tracking-wider mb-3 mt-2">Métricas de Risco</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm text-slate-300 mb-1">Vacância (%)</label>
+                                <input type="number" name="vacancy" step="0.01" placeholder="0.00" required 
+                                    class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:border-brand-accent">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-slate-300 mb-1">Liquidez Diária (R$)</label>
+                                <input type="number" name="liquidity" step="1" placeholder="1000000" required 
+                                    class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:border-brand-accent">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-slate-300 mb-1">Qtd. Ativos</label>
+                                <input type="number" name="assets" step="1" placeholder="1" required 
+                                    class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:border-brand-accent">
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                
+                <div class="mt-8 flex justify-end gap-3">
+                    <button type="button" onclick="closeRegisterModal()" class="px-4 py-2 text-sm text-slate-300 hover:text-white transition-colors">Cancelar</button>
+                    <button type="submit" class="bg-brand-success hover:bg-emerald-600 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg transition-all transform active:scale-95">
+                        Salvar FII
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Adicionar a Carteira -->
+    <div id="addToWalletModal" class="fixed inset-0 z-[120] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onclick="closeAddToWalletModal()"></div>
+        <div class="relative w-full max-w-md bg-brand-dark border border-slate-600 rounded-2xl shadow-2xl animate-enter overflow-hidden">
+            <div class="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
+                <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-wallet text-brand-accent"></i> <span id="walletModalTicker">TICKER</span>
+                </h2>
+                <button onclick="closeAddToWalletModal()" class="text-slate-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <form id="walletForm" onsubmit="handleAddToWallet(event)" class="p-6">
+                <input type="hidden" name="ticker" id="walletTickerInput">
+                <div class="space-y-5">
+                    <div>
+                        <label class="block text-sm text-slate-300 mb-1 font-semibold">Quantidade de Cotas</label>
+                        <input type="number" name="qty" id="walletQty" required min="1" step="1" placeholder="Ex: 100"
+                            class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:border-brand-accent">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-300 mb-1 font-semibold">Preço Médio (R$)</label>
+                        <input type="number" name="avg_price" id="walletPrice" required min="0.01" step="0.01" placeholder="Ex: 10.50"
+                            class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:border-brand-accent">
+                    </div>
+                </div>
+                <div class="mt-8 flex justify-end gap-3">
+                    <button type="button" onclick="closeAddToWalletModal()" class="px-4 py-2 text-sm text-slate-300 hover:text-white transition-colors">Cancelar</button>
+                    <button type="submit" class="bg-brand-accent hover:bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg transition-all transform active:scale-95">
+                        Salvar na Carteira
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. MOCK DATA (Banco de Dados Simulado) ---
+        const fiiData = [
+            {
+                ticker: "SNEL11",
+                name: "Suno Energias Limpas",
+                sector: "Energia",
+                price: 9.85,
+                pvp: 0.94,
+                dy_12m: 13.2,
+                vacancy: 0,
+                liquidity: 1500000,
+                assets_count: 5,
+                dividends: [0.10, 0.11, 0.10, 0.12, 0.10, 0.10, 0.11, 0.10, 0.10, 0.10, 0.10, 0.12]
+            },
+            {
+                ticker: "SNM11",
+                name: "Suno Multiestratégia",
+                sector: "Papel",
+                price: 10.15,
+                pvp: 1.01,
+                dy_12m: 11.5,
+                vacancy: 0,
+                liquidity: 800000,
+                assets_count: 15,
+                dividends: [0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10]
+            },
+            {
+                ticker: "HGLG11",
+                name: "CSHG Logística",
+                sector: "Logística",
+                price: 162.50,
+                pvp: 1.05,
+                dy_12m: 9.2,
+                vacancy: 2.5,
+                liquidity: 8500000,
+                assets_count: 17,
+                dividends: [1.10, 1.10, 1.10, 1.10, 1.50, 1.10, 1.10, 1.10, 1.10, 1.10, 2.20, 1.10] 
+            },
+            {
+                ticker: "KNRI11",
+                name: "Kinea Renda Imobiliária",
+                sector: "Híbrido",
+                price: 158.30,
+                pvp: 0.98,
+                dy_12m: 8.5,
+                vacancy: 3.1,
+                liquidity: 4200000,
+                assets_count: 21,
+                dividends: [1.00, 0.95, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 0.98, 1.01, 1.00]
+            },
+            {
+                ticker: "DEVA11",
+                name: "Devant Recebíveis",
+                sector: "Papel",
+                price: 42.10,
+                pvp: 0.45,
+                dy_12m: 16.5,
+                vacancy: 0,
+                liquidity: 1200000,
+                assets_count: 45,
+                dividends: [0.50, 0.45, 0.40, 0.35, 0.30, 0.55, 0.40, 0.30, 0.25, 0.20, 0.15, 0.40]
+            },
+            {
+                ticker: "TRXB11",
+                name: "Trix Recebíveis",
+                sector: "Papel",
+                price: 105.00,
+                pvp: 1.73,
+                dy_12m: 11.2,
+                vacancy: 0,
+                liquidity: 50000,
+                assets_count: 1,
+                dividends: [1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00]
+            },
+            {
+                ticker: "VISC11",
+                name: "Vinci Shopping Centers",
+                sector: "Shopping",
+                price: 118.90,
+                pvp: 0.92,
+                dy_12m: 8.9,
+                vacancy: 6.5,
+                liquidity: 5500000,
+                assets_count: 25,
+                dividends: [0.85, 0.90, 0.85, 0.95, 1.00, 0.80, 0.85, 0.92, 0.88, 0.90, 0.85, 0.95]
+            },
+            {
+                ticker: "RECT11",
+                name: "Rec Renda Imobiliária",
+                sector: "Laje",
+                price: 38.50,
+                pvp: 0.42,
+                dy_12m: 11.5,
+                vacancy: 15.2,
+                liquidity: 900000,
+                assets_count: 9,
+                dividends: [0.40, 0.40, 0.38, 0.38, 0.36, 0.36, 0.34, 0.34, 0.34, 0.34, 0.34, 0.34]
+            }
+        ];
+
+        // Carteira do Usuário Fixa
+        const myWallet = [
+            { ticker: "SNEL11", qty: 200, avg_price: 10.00 },
+            { ticker: "SNM11", qty: 150, avg_price: 10.10 },
+            { ticker: "DEVA11", qty: 50, avg_price: 85.50 }
+        ];
+
+        // --- 2. ALGORITMO DOS 6 PILARES ---
+
+        function calculateCV(dividends) {
+            if (!dividends || dividends.length === 0) return 0;
+            const n = dividends.length;
+            const mean = dividends.reduce((a, b) => a + b) / n;
+            if (mean === 0) return 0;
+            const stdDev = Math.sqrt(dividends.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / n);
+            return ((stdDev / mean) * 100).toFixed(2);
+        }
+
+        function analyzeFII(fii) {
+            let score = 100;
+            let warnings = [];
+            
+            // 1. P/VP
+            let pvpStatus = "Neutro";
+            if (fii.pvp > 1.20) {
+                score -= 30;
+                warnings.push({ pillar: "Preço", msg: `Ágio excessivo (P/VP ${fii.pvp}).`, severity: "high" });
+                pvpStatus = "Caro";
+            } else if (fii.pvp < 0.70 && !["Papel", "Energia"].includes(fii.sector)) {
+                score -= 10;
+                warnings.push({ pillar: "Preço", msg: `Desconto muito alto (P/VP ${fii.pvp}).`, severity: "medium" });
+                pvpStatus = "Suspeito";
+            } else if (fii.pvp >= 0.85 && fii.pvp <= 1.05) {
+                pvpStatus = "Justo";
+            }
+
+            // 2. DY
+            let dyStatus = "Neutro";
+            if (fii.dy_12m > 16.0) {
+                score -= 25;
+                warnings.push({ pillar: "Yield", msg: `DY de ${fii.dy_12m}% é anormalmente alto.`, severity: "high" });
+                dyStatus = "Risco Alto";
+            } else if (fii.dy_12m < 6.0) {
+                score -= 10;
+                warnings.push({ pillar: "Yield", msg: "Rentabilidade Baixa.", severity: "low" });
+                dyStatus = "Baixo";
+            }
+
+            // 3. Vacância
+            if (!["Papel", "Energia"].includes(fii.sector)) {
+                if (fii.vacancy > 10.0) {
+                    score -= 20;
+                    warnings.push({ pillar: "Vacância", msg: `Vacância alta de ${fii.vacancy}%.`, severity: "high" });
+                }
+            }
+
+            // 4. Liquidez
+            if (fii.liquidity < 500000) {
+                score -= 15;
+                warnings.push({ pillar: "Liquidez", msg: "Baixa liquidez diária.", severity: "high" });
+            }
+
+            // 5. Diversificação
+            if (fii.assets_count === 1) {
+                score -= 15;
+                warnings.push({ pillar: "Diversificação", msg: "Fundo Mono-Ativo.", severity: "medium" });
+            }
+
+            // 6. Consistência
+            const cv = calculateCV(fii.dividends);
+            let cvStatus = "Estável";
+            if (cv > 25.0) {
+                score -= 20;
+                warnings.push({ pillar: "Consistência", msg: `Proventos instáveis (CV: ${cv}%).`, severity: "high" });
+                cvStatus = "Instável";
+            }
+
+            // Veredito
+            let veredict = { label: "Observar", color: "text-brand-warning", bg: "bg-brand-warning/10", icon: "fa-eye" };
+            if (score >= 80 && warnings.filter(w => w.severity === 'high').length === 0) {
+                veredict = { label: "Oportunidade", color: "text-brand-success", bg: "bg-brand-success/10", icon: "fa-thumbs-up" };
+            } else if (score < 50 || warnings.filter(w => w.severity === 'high').length >= 2) {
+                veredict = { label: "Cilada/Bomba", color: "text-brand-danger", bg: "bg-brand-danger/10", icon: "fa-bomb" };
+            }
+
+            return { score, warnings, veredict, cv, pvpStatus, dyStatus, cvStatus };
+        }
+
+        // --- 3. RENDERIZAÇÃO DA INTERFACE ---
+
+        const grid = document.getElementById('fiiGrid');
+        const portGrid = document.getElementById('portfolioGrid');
+        const rankTable = document.getElementById('rankingTableBody');
+
+        function renderGrid(filter = "all", searchText = "") {
+            grid.innerHTML = "";
+            let delay = 0;
+
+            const filtered = fiiData.filter(fii => {
+                const matchesFilter = filter === "all" || fii.sector === filter;
+                const matchesSearch = !searchText || fii.ticker.includes(searchText.toUpperCase());
+                return matchesFilter && matchesSearch;
+            });
+
+            if(filtered.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center text-slate-500 py-10">Nenhum ativo encontrado.</div>`;
+                return;
+            }
+
+            filtered.forEach(fii => {
+                const analysis = analyzeFII(fii);
+                const card = createCard(fii, analysis, delay);
+                grid.appendChild(card);
+                delay += 50;
+            });
+        }
+
+        function renderPortfolio() {
+            portGrid.innerHTML = "";
+            let totalValue = 0;
+            let totalIncome = 0;
+            let weightedScore = 0;
+            let totalInvested = 0;
+
+            if (myWallet.length === 0) {
+                portGrid.innerHTML = `<div class="text-center text-slate-500 py-10">Sua carteira está vazia.</div>`;
+                return;
+            }
+
+            myWallet.forEach((pos, index) => {
+                const fii = fiiData.find(f => f.ticker === pos.ticker);
+                if (!fii) return; 
+
+                const analysis = analyzeFII(fii);
+                
+                const currentValue = pos.qty * fii.price;
+                const lastDiv = fii.dividends[fii.dividends.length -1];
+                const monthlyIncome = pos.qty * lastDiv;
+
+                totalValue += currentValue;
+                totalIncome += monthlyIncome;
+                weightedScore += analysis.score * currentValue;
+                totalInvested += currentValue;
+
+                const result = (fii.price - pos.avg_price) * pos.qty;
+                const resultClass = result >= 0 ? "text-brand-success" : "text-brand-danger";
+                const resultIcon = result >= 0 ? "fa-arrow-trend-up" : "fa-arrow-trend-down";
+
+                const row = document.createElement('div');
+                row.className = "glass-panel p-5 rounded-xl flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 animate-enter hover:bg-slate-800/50 transition-all cursor-pointer border-l-4 border-transparent hover:border-brand-accent";
+                row.style.animationDelay = `${index * 100}ms`;
+                row.onclick = () => openModal(fii, analysis);
+
+                row.innerHTML = `
+                    <div class="flex items-center gap-4 w-full lg:w-1/4">
+                        <div class="w-14 h-14 rounded-xl bg-brand-card flex items-center justify-center border border-slate-700 font-bold text-white shadow-lg text-lg">
+                            ${fii.ticker.substring(0,2)}
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-xl leading-tight text-white">${fii.ticker}</h3>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-[10px] ${analysis.veredict.color} bg-slate-900 px-2 py-0.5 rounded font-bold uppercase tracking-wide border border-slate-700">
+                                    ${analysis.veredict.label}
+                                </span>
+                                <span class="text-xs text-slate-400 font-medium">${pos.qty} cotas</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-6 w-full lg:w-3/4">
+                        <div>
+                            <p class="text-[10px] uppercase tracking-wider text-brand-muted font-bold mb-1">Preço Médio</p>
+                            <p class="font-semibold text-slate-200">R$ ${pos.avg_price.toFixed(2)}</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] uppercase tracking-wider text-brand-muted font-bold mb-1">Valor Atual</p>
+                            <p class="font-semibold text-slate-200">R$ ${fii.price.toFixed(2)}</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] uppercase tracking-wider text-brand-muted font-bold mb-1">Resultado</p>
+                            <p class="font-bold ${resultClass}">
+                                <i class="fa-solid ${resultIcon} text-xs mr-1"></i>R$ ${Math.abs(result).toFixed(2)}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] uppercase tracking-wider text-brand-muted font-bold mb-1">Prov. Estimados</p>
+                            <p class="font-bold text-brand-success">R$ ${monthlyIncome.toFixed(2)}</p>
+                        </div>
+                    </div>
+                `;
+                portGrid.appendChild(row);
+            });
+
+            document.getElementById('port-total').innerText = `R$ ${totalValue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            document.getElementById('port-income').innerText = `R$ ${totalIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            
+            const avgYield = totalValue > 0 ? ((totalIncome * 12) / totalValue) * 100 : 0;
+            document.getElementById('port-yield').innerText = `Yield Médio: ${avgYield.toFixed(2)}% a.a.`;
+
+            const finalScore = totalInvested > 0 ? Math.round(weightedScore / totalInvested) : 0;
+            const scoreEl = document.getElementById('port-score');
+            scoreEl.innerText = finalScore;
+            scoreEl.className = `text-3xl font-bold ${finalScore > 70 ? 'text-brand-success' : (finalScore > 50 ? 'text-brand-warning' : 'text-brand-danger')}`;
+        }
+
+        function renderRanking() {
+            rankTable.innerHTML = "";
+            
+            const rankedFIIs = fiiData.map(fii => {
+                return { ...fii, analysis: analyzeFII(fii) };
+            }).sort((a, b) => b.analysis.score - a.analysis.score);
+
+            rankedFIIs.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-700/30 transition-colors cursor-pointer group";
+                tr.onclick = () => openModal(item, item.analysis);
+                
+                const inWallet = myWallet.some(w => w.ticker === item.ticker);
+                let rankColor = "text-slate-500";
+                if(index === 0) rankColor = "text-yellow-400";
+                if(index === 1) rankColor = "text-slate-300";
+                if(index === 2) rankColor = "text-amber-600";
+
+                tr.innerHTML = `
+                    <td class="p-4 pl-6 font-bold ${rankColor}">#${index + 1}</td>
+                    <td class="p-4 font-bold text-white flex items-center gap-3">
+                        <span class="bg-slate-700 text-[10px] flex items-center justify-center rounded text-slate-300 w-8 h-8 font-bold">${item.ticker.substring(0,2)}</span>
+                        <div>
+                            ${item.ticker}
+                            ${inWallet ? '<span class="ml-2 text-[10px] bg-brand-accent/20 text-brand-accent px-1.5 py-0.5 rounded border border-brand-accent/30"><i class="fa-solid fa-check"></i></span>' : ''}
+                        </div>
+                    </td>
+                    <td class="p-4 text-sm text-brand-muted hidden sm:table-cell">${item.sector}</td>
+                    <td class="p-4 font-semibold text-slate-200 text-sm">R$ ${item.price.toFixed(2)}</td>
+                    <td class="p-4 font-semibold text-sm ${item.analysis.dyStatus === 'Risco Alto' ? 'text-brand-danger' : 'text-brand-success'} hidden sm:table-cell">${item.dy_12m}%</td>
+                    <td class="p-4 font-semibold text-sm ${item.analysis.pvpStatus === 'Justo' ? 'text-brand-success' : (item.analysis.pvpStatus === 'Caro' ? 'text-brand-danger' : 'text-brand-warning')} hidden md:table-cell">${item.pvp}</td>
+                    <td class="p-4 hidden sm:table-cell">
+                         <span class="text-[10px] ${item.analysis.veredict.color} bg-slate-900 border border-slate-700 px-2 py-1 rounded font-bold uppercase tracking-wide whitespace-nowrap">
+                            ${item.analysis.veredict.label}
+                        </span>
+                    </td>
+                    <td class="p-4 pr-6 text-right">
+                        <span class="font-bold text-lg ${item.analysis.score > 70 ? 'text-brand-success' : (item.analysis.score > 40 ? 'text-brand-warning' : 'text-brand-danger')}">${item.analysis.score}</span>
+                    </td>
+                `;
+                rankTable.appendChild(tr);
+            });
+        }
+
+        function createCard(fii, analysis, delay) {
+            const card = document.createElement('div');
+            const inWallet = myWallet.some(w => w.ticker === fii.ticker);
+            card.className = `glass-panel rounded-xl p-6 hover:border-slate-500 hover:shadow-xl hover:shadow-brand-accent/5 transition-all cursor-pointer group animate-enter relative overflow-hidden flex flex-col h-full transform hover:-translate-y-1`;
+            card.style.animationDelay = `${delay}ms`;
+            
+            card.onclick = () => openModal(fii, analysis);
+
+            const badge = inWallet ? `
+                <div class="absolute top-0 left-0 bg-brand-accent/90 text-white text-[10px] font-bold px-3 py-1.5 rounded-br-xl z-20 shadow-lg backdrop-blur-sm border-r border-b border-brand-accent/50 flex items-center gap-1.5">
+                    <i class="fa-solid fa-check"></i> NA CARTEIRA
+                </div>
+            ` : '';
+
+            card.innerHTML = `
+                ${badge}
+                <div class="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <i class="fa-solid fa-chart-pie text-8xl"></i>
+                </div>
+
+                <div class="flex justify-between items-start mb-6 relative z-10 pt-2">
+                    <div>
+                        <span class="text-[10px] font-bold text-brand-accent uppercase tracking-wider bg-brand-accent/10 px-2 py-1 rounded border border-brand-accent/20">${fii.sector}</span>
+                        <h3 class="text-2xl font-bold text-white mt-2 tracking-tight">${fii.ticker}</h3>
+                        <p class="text-xs text-brand-muted truncate max-w-[150px] mt-1">${fii.name}</p>
+                    </div>
+                    <div class="flex flex-col items-end">
+                         <div class="${analysis.veredict.bg} ${analysis.veredict.color} px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 border border-${analysis.veredict.color.split('-')[1]}-500/30 shadow-sm">
+                            <i class="fa-solid ${analysis.veredict.icon}"></i>
+                            ${analysis.veredict.label}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-y-4 gap-x-4 mb-6 relative z-10 flex-grow">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-brand-muted font-bold mb-1">Preço</p>
+                        <p class="font-semibold text-sm text-slate-200">R$ ${fii.price.toFixed(2)}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-brand-muted font-bold mb-1">DY (12m)</p>
+                        <p class="font-semibold text-sm ${analysis.dyStatus === 'Risco Alto' ? 'text-brand-danger' : 'text-brand-success'}">${fii.dy_12m}%</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-brand-muted font-bold mb-1">P/VP</p>
+                        <p class="font-semibold text-sm ${analysis.pvpStatus === 'Justo' ? 'text-brand-success' : (analysis.pvpStatus === 'Caro' ? 'text-brand-danger' : 'text-brand-warning')}">${fii.pvp}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-brand-muted font-bold mb-1">Consistência</p>
+                        <p class="font-semibold text-xs mt-0.5 text-slate-200">${analysis.cvStatus}</p>
+                    </div>
+                </div>
+
+                <div class="mt-auto pt-4 border-t border-slate-700 relative z-10">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-brand-muted font-medium uppercase tracking-wide">Score GO FIIs</span>
+                        <div class="flex items-center gap-2">
+                            <div class="w-24 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                                <div class="h-full ${analysis.score > 70 ? 'bg-brand-success' : (analysis.score > 40 ? 'bg-brand-warning' : 'bg-brand-danger')}" style="width: ${Math.max(5, analysis.score)}%"></div>
+                            </div>
+                            <span class="font-bold text-white text-sm">${analysis.score}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        // --- 4. MODAL DETALHADO ---
+
+        function openModal(fii, analysis) {
+            const modal = document.getElementById('detailModal');
+            const content = document.getElementById('modalContent');
+            const inWallet = myWallet.some(w => w.ticker === fii.ticker);
+            
+            const warningsHtml = analysis.warnings.length > 0 
+                ? analysis.warnings.map(w => `
+                    <div class="flex items-start gap-3 bg-red-500/10 border border-red-500/20 p-3 rounded-lg mb-2">
+                        <div class="bg-red-500/20 rounded p-1 shrink-0">
+                            <i class="fa-solid fa-triangle-exclamation text-red-400 text-xs"></i>
+                        </div>
+                        <div>
+                            <p class="text-red-200 text-xs font-bold uppercase tracking-wide">${w.pillar}</p>
+                            <p class="text-red-300/80 text-xs mt-0.5">${w.msg}</p>
+                        </div>
+                    </div>
+                `).join('')
+                : `<div class="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-lg text-emerald-400 text-sm flex items-center gap-3">
+                     <div class="bg-emerald-500/20 rounded-full p-1"><i class="fa-solid fa-check"></i></div>
+                     <span class="font-medium">Excelente! Nenhum ponto crítico.</span>
+                   </div>`;
+
+            const getBarColor = (val, type) => {
+                if (type === 'pvp') return val > 1.2 || val < 0.6 ? 'bg-red-500' : 'bg-emerald-500';
+                if (type === 'dy') return val > 16 || val < 6 ? 'bg-amber-500' : 'bg-emerald-500';
+                return 'bg-blue-500';
+            };
+
+            content.innerHTML = `
+                <div class="flex flex-col md:flex-row h-full">
+                    <!-- Sidebar Resumo -->
+                    <div class="md:w-1/3 bg-slate-800 p-8 md:border-r border-slate-700 flex flex-col shrink-0 overflow-y-auto">
+                        <div class="mb-8 text-center md:text-left">
+                            <div class="flex flex-wrap items-center gap-2 mb-3">
+                                <div class="inline-flex items-center gap-2 text-brand-accent text-xs font-bold uppercase tracking-wider border border-brand-accent/20 px-3 py-1 rounded-full bg-brand-accent/5">
+                                    <i class="fa-regular fa-building"></i> ${fii.sector}
+                                </div>
+                                ${inWallet ? '<div class="inline-flex items-center gap-1 text-white text-[10px] font-bold uppercase tracking-wider bg-brand-accent px-2 py-1 rounded-full"><i class="fa-solid fa-check"></i> Carteira</div>' : ''}
+                            </div>
+                            <h2 class="text-5xl font-bold text-white mb-2 tracking-tighter">${fii.ticker}</h2>
+                            <p class="text-slate-400 text-sm leading-snug font-medium">${fii.name}</p>
+                        </div>
+
+                        <div class="mb-8">
+                            <div class="${analysis.veredict.bg} border border-${analysis.veredict.color.split('-')[1]}-500/50 p-6 rounded-2xl text-center shadow-lg relative overflow-hidden">
+                                <div class="relative z-10">
+                                    <i class="fa-solid ${analysis.veredict.icon} ${analysis.veredict.color} text-4xl mb-3 block drop-shadow-lg"></i>
+                                    <h3 class="text-2xl font-bold text-white tracking-tight">${analysis.veredict.label}</h3>
+                                    <p class="text-[10px] text-slate-400 mt-2 uppercase tracking-widest font-semibold">Veredito do Algoritmo</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex-grow">
+                            <span class="text-[10px] font-bold text-slate-500 uppercase mb-4 block tracking-widest">Raio-X de Riscos</span>
+                            ${warningsHtml}
+                        </div>
+                        
+                        <div class="mt-8 pt-6 border-t border-slate-700 space-y-3">
+                             <button onclick="openAddToWalletModal('${fii.ticker}')" class="w-full bg-brand-accent hover:bg-blue-600 text-white py-3 rounded-xl text-sm font-bold transition-all hover:shadow-lg flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20">
+                                <i class="fa-solid fa-wallet"></i> ${inWallet ? 'Editar Posição' : 'Adicionar à Carteira'}
+                            </button>
+                            <button onclick="closeModal()" class="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl text-sm font-bold transition-all hover:shadow-lg">Fechar Análise</button>
+                        </div>
+                    </div>
+
+                    <!-- Conteúdo Principal -->
+                    <div class="md:w-2/3 p-8 bg-brand-dark overflow-y-auto custom-scrollbar">
+                        <div class="flex justify-between items-center mb-8">
+                            <h3 class="text-xl font-bold flex items-center gap-3 text-white">
+                                <span class="bg-brand-accent/20 p-2 rounded-lg text-brand-accent"><i class="fa-solid fa-sliders"></i></span>
+                                Análise dos 6 Pilares
+                            </h3>
+                            <div class="flex flex-col items-end">
+                                <span class="text-3xl font-bold ${analysis.score > 70 ? 'text-brand-success' : (analysis.score > 40 ? 'text-brand-warning' : 'text-brand-danger')}">${analysis.score}</span>
+                                <span class="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Score Geral</span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-8">
+                            
+                            <!-- Card 1 -->
+                            <div class="bg-slate-800/40 p-5 rounded-2xl border border-slate-700/50 hover:border-slate-600 transition-colors">
+                                <div class="flex justify-between mb-3">
+                                    <span class="text-xs text-slate-400 font-bold uppercase tracking-wide">1. Preço (P/VP)</span>
+                                    <span class="font-bold text-base ${analysis.pvpStatus === 'Justo' ? 'text-emerald-400' : 'text-amber-400'}">${fii.pvp}x</span>
+                                </div>
+                                <div class="w-full bg-slate-700/50 h-2 rounded-full overflow-hidden">
+                                    <div class="h-full ${getBarColor(fii.pvp, 'pvp')}" style="width: ${Math.min(fii.pvp * 50, 100)}%"></div>
+                                </div>
+                                <p class="text-[10px] text-slate-500 mt-2">Ideal entre 0.85x e 1.05x</p>
+                            </div>
+
+                            <!-- Card 2 -->
+                            <div class="bg-slate-800/40 p-5 rounded-2xl border border-slate-700/50 hover:border-slate-600 transition-colors">
+                                <div class="flex justify-between mb-3">
+                                    <span class="text-xs text-slate-400 font-bold uppercase tracking-wide">2. Yield (12m)</span>
+                                    <span class="font-bold text-base">${fii.dy_12m}%</span>
+                                </div>
+                                <div class="w-full bg-slate-700/50 h-2 rounded-full overflow-hidden">
+                                    <div class="h-full ${getBarColor(fii.dy_12m, 'dy')}" style="width: ${Math.min(fii.dy_12m * 5, 100)}%"></div>
+                                </div>
+                                <p class="text-[10px] text-slate-500 mt-2">Alerta acima de 16%</p>
+                            </div>
+
+                            <!-- Card 3 -->
+                            <div class="bg-slate-800/40 p-5 rounded-2xl border border-slate-700/50 hover:border-slate-600 transition-colors">
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-xs text-slate-400 font-bold uppercase tracking-wide">3. Vacância</span>
+                                    <span class="font-bold text-base ${fii.vacancy > 10 ? 'text-red-400' : 'text-emerald-400'}">${fii.vacancy}%</span>
+                                </div>
+                                <p class="text-[10px] text-slate-500">Vacância física atual</p>
+                            </div>
+
+                            <!-- Card 4 -->
+                            <div class="bg-slate-800/40 p-5 rounded-2xl border border-slate-700/50 hover:border-slate-600 transition-colors">
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-xs text-slate-400 font-bold uppercase tracking-wide">4. Liquidez</span>
+                                    <span class="font-bold text-base text-white">R$ ${(fii.liquidity/1000).toFixed(0)}k</span>
+                                </div>
+                                <p class="text-[10px] text-slate-500">Média diária de negociação</p>
+                            </div>
+
+                            <!-- Card 5 -->
+                            <div class="bg-slate-800/40 p-5 rounded-2xl border border-slate-700/50 hover:border-slate-600 transition-colors">
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-xs text-slate-400 font-bold uppercase tracking-wide">5. Portfólio</span>
+                                    <span class="font-bold text-white text-base">${fii.assets_count} Ativos</span>
+                                </div>
+                                <p class="text-[10px] text-slate-500">${fii.assets_count === 1 ? 'Risco: Mono-Ativo' : 'Diversificado'}</p>
+                            </div>
+
+                            <!-- Card 6 -->
+                            <div class="bg-slate-800/40 p-5 rounded-2xl border border-slate-700/50 hover:border-slate-600 transition-colors">
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-xs text-slate-400 font-bold uppercase tracking-wide">6. Estabilidade (CV)</span>
+                                    <span class="font-bold text-base ${analysis.cv > 25 ? 'text-red-400' : 'text-emerald-400'}">${analysis.cv}%</span>
+                                </div>
+                                <p class="text-[10px] text-slate-500">Coef. Variação Dividendos</p>
+                            </div>
+                        </div>
+
+                        <!-- Chart Section -->
+                        <div class="bg-slate-900/50 p-6 rounded-2xl border border-slate-700">
+                             <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">Histórico de Proventos (Últimos 12 meses)</h4>
+                             <div class="h-48 w-full">
+                                <canvas id="dividendChart"></canvas>
+                             </div>
+                        </div>
+
+                    </div>
+                </div>
+            `;
+
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+
+            // Chart Rendering
+            setTimeout(() => {
+                const ctx = document.getElementById('dividendChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'],
+                        datasets: [{
+                            label: 'Dividendos',
+                            data: fii.dividends,
+                            backgroundColor: (context) => {
+                                const value = context.raw;
+                                const avg = fii.dividends.reduce((a,b)=>a+b)/fii.dividends.length;
+                                return Math.abs(value - avg) > (avg * 0.3) ? '#ef4444' : '#3b82f6';
+                            },
+                            borderRadius: 4,
+                            barThickness: 'flex',
+                            maxBarThickness: 30
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false }, tooltip: {
+                            backgroundColor: '#1e293b',
+                            titleColor: '#94a3b8',
+                            bodyColor: '#fff',
+                            borderColor: '#334155',
+                            borderWidth: 1,
+                            padding: 10,
+                            displayColors: false
+                        }},
+                        scales: {
+                            y: { 
+                                beginAtZero: true, 
+                                grid: { color: '#334155', drawBorder: false }, 
+                                ticks: { color: '#94a3b8', font: {size: 11} } 
+                            },
+                            x: { 
+                                grid: { display: false }, 
+                                ticks: { color: '#94a3b8', font: {size: 11} } 
+                            }
+                        }
+                    }
+                });
+            }, 150);
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+        
+        // --- 5. LOGICA DE CADASTRO ---
+        
+        function openRegisterModal() {
+            document.getElementById('registerModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeRegisterModal() {
+            document.getElementById('registerModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+        
+        function handleRegister(event) {
+            event.preventDefault();
+            const form = event.target;
+            
+            // Generate basic mock dividends based on price and DY for chart visualization
+            // Logic: DY = (annual_divs / price) * 100 -> annual_divs = (DY/100) * price
+            // Monthly approx = annual_divs / 12
+            const price = parseFloat(form.price.value);
+            const dy = parseFloat(form.dy.value);
+            const monthlyAvg = (price * (dy / 100)) / 12;
+            
+            // Create somewhat varied dividend data
+            const dividends = Array.from({length: 12}, () => {
+                // Variation of +/- 5%
+                const variation = (Math.random() * 0.1) - 0.05; 
+                return parseFloat((monthlyAvg * (1 + variation)).toFixed(2));
+            });
+
+            const newFII = {
+                ticker: form.ticker.value.toUpperCase(),
+                name: form.name.value,
+                sector: form.sector.value,
+                price: price,
+                pvp: parseFloat(form.pvp.value),
+                dy_12m: dy,
+                vacancy: parseFloat(form.vacancy.value),
+                liquidity: parseFloat(form.liquidity.value),
+                assets_count: parseInt(form.assets.value),
+                dividends: dividends
+            };
+            
+            fiiData.push(newFII);
+            
+            // Refresh current view
+            const activeBtn = document.querySelector('.filter-btn.active');
+            const currentFilter = activeBtn ? activeBtn.dataset.filter : 'all';
+            renderGrid(currentFilter, document.getElementById('searchInput').value);
+            renderRanking();
+            
+            closeRegisterModal();
+            form.reset();
+            
+            switchTab('dashboard');
+        }
+
+        // --- 6. LOGICA DA CARTEIRA ---
+
+        function openAddToWalletModal(ticker) {
+            // Find price for default value
+            const fii = fiiData.find(f => f.ticker === ticker);
+            const inWallet = myWallet.find(w => w.ticker === ticker);
+            
+            document.getElementById('walletModalTicker').innerText = ticker;
+            document.getElementById('walletTickerInput').value = ticker;
+            
+            if (inWallet) {
+                document.getElementById('walletQty').value = inWallet.qty;
+                document.getElementById('walletPrice').value = inWallet.avg_price;
+            } else {
+                document.getElementById('walletQty').value = '';
+                document.getElementById('walletPrice').value = fii ? fii.price : '';
+            }
+
+            document.getElementById('addToWalletModal').classList.remove('hidden');
+        }
+
+        function closeAddToWalletModal() {
+            document.getElementById('addToWalletModal').classList.add('hidden');
+        }
+
+        function handleAddToWallet(event) {
+            event.preventDefault();
+            const ticker = document.getElementById('walletTickerInput').value;
+            const qty = parseInt(document.getElementById('walletQty').value);
+            const avg_price = parseFloat(document.getElementById('walletPrice').value);
+
+            const index = myWallet.findIndex(w => w.ticker === ticker);
+            
+            if (index >= 0) {
+                myWallet[index] = { ticker, qty, avg_price };
+            } else {
+                myWallet.push({ ticker, qty, avg_price });
+            }
+            
+            // Update UI
+            closeAddToWalletModal();
+            
+            // Refresh modal if open to show updated status
+            const fii = fiiData.find(f => f.ticker === ticker);
+            if(fii) {
+                const analysis = analyzeFII(fii);
+                openModal(fii, analysis); // Refresh detailed modal button and badge
+            }
+            
+            // Refresh other views
+            const activeBtn = document.querySelector('.filter-btn.active');
+            const filter = activeBtn ? activeBtn.dataset.filter : 'all';
+            renderGrid(filter, document.getElementById('searchInput').value);
+            renderRanking();
+            renderPortfolio(); 
+        }
+
+        // --- 7. INITIALIZATION & EVENTS ---
+
+        function switchTab(tab) {
+            const views = {
+                dashboard: document.getElementById('dashboard-view'),
+                portfolio: document.getElementById('portfolio-view'),
+                ranking: document.getElementById('ranking-view')
+            };
+            const navs = {
+                dashboard: document.getElementById('nav-dashboard'),
+                portfolio: document.getElementById('nav-portfolio'),
+                ranking: document.getElementById('nav-ranking')
+            };
+
+            // Reset
+            Object.values(views).forEach(el => el.classList.add('hidden'));
+            Object.values(navs).forEach(el => {
+                if(el) {
+                    el.classList.remove('active', 'bg-slate-800');
+                    el.classList.add('text-brand-muted');
+                }
+            });
+
+            // Activate
+            views[tab].classList.remove('hidden');
+            if(navs[tab]) {
+                navs[tab].classList.add('active', 'bg-slate-800');
+                navs[tab].classList.remove('text-brand-muted');
+            }
+
+            // Re-render specifics
+            if (tab === 'dashboard') renderGrid(document.querySelector('.filter-btn.active')?.dataset.filter || 'all');
+            if (tab === 'portfolio') renderPortfolio();
+            if (tab === 'ranking') renderRanking();
+        }
+
+        // Filter Logic
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.filter-btn').forEach(b => {
+                    b.classList.remove('active', 'bg-slate-700', 'text-white');
+                    b.classList.add('bg-brand-dark', 'text-brand-muted');
+                });
+                e.target.classList.remove('bg-brand-dark', 'text-brand-muted');
+                e.target.classList.add('active', 'bg-slate-700', 'text-white');
+                renderGrid(e.target.dataset.filter, document.getElementById('searchInput').value);
+            });
+        });
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const activeFilter = document.querySelector('.filter-btn.active')?.dataset.filter || 'all';
+            renderGrid(activeFilter, e.target.value);
+        });
+
+        // Init
+        window.addEventListener('DOMContentLoaded', () => {
+            renderGrid();
+        });
+
+    </script>
+</body>
+</html>
