@@ -8,12 +8,7 @@ import { FaWallet, FaHandHoldingDollar, FaChartSimple } from "react-icons/fa6";
 export default function CarteiraPage() {
   
   // Lógica de Consolidação dos Dados
-  let totalPatrimony = 0;
-  let totalIncome = 0;
-  let weightedScoreSum = 0;
-
-  // Cruzamos os dados da carteira com os dados de mercado
-  const walletFullData = MOCK_WALLET.map(item => {
+  const walletFullDataWithCalculations = MOCK_WALLET.map(item => {
     const marketData = MOCK_FIIS.find(f => f.ticker === item.ticker);
     
     if (!marketData) return null; // Segurança caso o ticker não exista
@@ -23,13 +18,23 @@ export default function CarteiraPage() {
     const income = item.qty * lastDiv;
     const analysis = analyzeFII(marketData);
 
-    // Acumuladores
-    totalPatrimony += currentVal;
-    totalIncome += income;
-    weightedScoreSum += (analysis.score * currentVal);
-
-    return { walletItem: item, marketData };
+    return { walletItem: item, marketData, currentVal, income, score: analysis.score };
   }).filter(item => item !== null); // Remove nulos
+
+  // Cálculo final usando reduce
+  const { totalPatrimony, totalIncome, weightedScoreSum } = walletFullDataWithCalculations.reduce(
+    (acc, item) => ({
+      totalPatrimony: acc.totalPatrimony + item!.currentVal,
+      totalIncome: acc.totalIncome + item!.income,
+      weightedScoreSum: acc.weightedScoreSum + (item!.score * item!.currentVal),
+    }),
+    { totalPatrimony: 0, totalIncome: 0, weightedScoreSum: 0 }
+  );
+
+  const walletFullData = walletFullDataWithCalculations.map(item => ({
+    walletItem: item!.walletItem,
+    marketData: item!.marketData,
+  }));
 
   // Cálculo final do Score Ponderado (Score médio baseado no dinheiro investido)
   const portfolioScore = totalPatrimony > 0 ? Math.round(weightedScoreSum / totalPatrimony) : 0;
