@@ -26,10 +26,29 @@ def init_db():
             status TEXT DEFAULT 'pending',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS wallet (
+            ticker TEXT PRIMARY KEY,
+            qty INTEGER DEFAULT 0,
+            avg_price REAL DEFAULT 0,
+            added_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
         -- Garantir que a tabela tenha as colunas corretas se já existir
         -- SQLite não suporta IF NOT EXISTS em ADD COLUMN facilmente, mas o INSERT vai falhar se a coluna faltar no runtime.
         
     """)
+    # Popular com mocks se a carteira estiver vazia
+    cursor.execute("SELECT COUNT(*) FROM wallet")
+    if cursor.fetchone()[0] == 0:
+        mocks = [
+            ("SNEL11", 200, 10.00),
+            ("SNM11", 150, 10.10),
+            ("DEVA11", 50, 85.50),
+            ("HGLG11", 15, 150.00)
+        ]
+        cursor.executemany("INSERT INTO wallet (ticker, qty, avg_price) VALUES (?, ?, ?)", mocks)
+        print("Carteira inicializada com dados mockados.")
+
     conn.commit()
     conn.close()
     print("Banco de dados inicializado com sucesso.")

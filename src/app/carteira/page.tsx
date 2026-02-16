@@ -7,29 +7,52 @@ import { analyzeFII } from "@/src/utils/fii-analyzer";
 import { FaWallet, FaHandHoldingDollar, FaChartSimple } from "react-icons/fa6";
 
 export default function CarteiraPage() {
-  const [wallet, setWallet] = useState<WalletItem[]>(MOCK_WALLET);
+  const [wallet, setWallet] = useState<WalletItem[]>([]);
   const [marketFiis, setMarketFiis] = useState<FiiData[]>(MOCK_FIIS);
   const [loading, setLoading] = useState(true);
 
+  const loadData = async () => {
+    try {
+      const [fiisRes, walletRes] = await Promise.all([
+        fetch('/api/fiis'),
+        fetch('/api/wallet')
+      ]);
+      
+      const fiisData = await fiisRes.json();
+      const walletData = await walletRes.json();
+
+      if (Array.isArray(fiisData) && fiisData.length > 0) {
+        setMarketFiis(fiisData);
+      }
+      
+      if (Array.isArray(walletData)) {
+        setWallet(walletData);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar dados:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // Carregar dados reais do banco de dados
-    fetch('/api/fiis')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-          setMarketFiis(data);
-        }
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error("Erro ao carregar FIIs:", err);
-        setLoading(false);
-      });
+    loadData();
   }, []);
 
-  const handleRemove = (ticker: string) => {
+  const handleRemove = async (ticker: string) => {
     if (confirm(`Deseja remover ${ticker} da sua carteira?`)) {
-      setWallet(prev => prev.filter(item => item.ticker !== ticker));
+      try {
+        const res = await fetch(`/api/wallet?ticker=${ticker}`, {
+          method: 'DELETE',
+        });
+        if (res.ok) {
+          setWallet(prev => prev.filter(item => item.ticker !== ticker));
+        } else {
+          alert("Erro ao remover do banco de dados.");
+        }
+      } catch (err) {
+        alert("Erro de conexão ao tentar remover.");
+      }
     }
   };
 

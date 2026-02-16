@@ -127,23 +127,28 @@ export default function SearchFiiModal({ onClose, onSelect }: SearchFiiModalProp
                 </div>
               )}
 
-              {query === "" && !queueMessage && (
+              {(query === "" || queueMessage) && (
                 <div className="p-4">
-                  <div className="text-center text-slate-500 text-xs mb-6">
-                    <p>Busque por um ticker para adicionar à sua carteira.</p>
-                  </div>
+                  {!queueMessage && (
+                    <div className="text-center text-slate-500 text-xs mb-6">
+                      <p>Busque por um ticker para adicionar à sua carteira.</p>
+                    </div>
+                  )}
                   
                   {pendingFiis.length > 0 && (
-                    <div className="mt-4 border-t border-slate-700/50 pt-4">
-                      <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 px-2">
+                    <div className="mt-2 border-t border-slate-700/50 pt-4">
+                      <h5 className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-3 px-2 flex items-center gap-2">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                        </span>
                         Aguardando Extração ({pendingFiis.length})
                       </h5>
                       <div className="grid grid-cols-2 gap-2 px-2">
                         {pendingFiis.map(item => (
-                          <div key={item.ticker} className="flex items-center gap-2 p-2 rounded bg-slate-800/50 border border-slate-700/50 text-slate-300 text-xs">
-                            <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                            <span className="font-bold">{item.ticker}</span>
-                            <span className="text-[10px] text-slate-500 italic ml-auto">Pendente</span>
+                          <div key={item.ticker} className="flex items-center gap-2 p-2.5 rounded-lg bg-slate-800/40 border border-slate-700/50 text-slate-300 text-xs hover:bg-slate-800/60 transition-colors">
+                            <span className="font-bold text-blue-400">{item.ticker}</span>
+                            <span className="text-[9px] text-slate-500 uppercase font-medium ml-auto">Na Fila</span>
                           </div>
                         ))}
                       </div>
