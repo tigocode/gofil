@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
-import db from '@/src/lib/db';
+import { query } from '@/src/lib/db';
 
 export async function GET() {
-  const pending = db.prepare("SELECT ticker FROM extraction_queue WHERE status = 'pending'").all();
-  return NextResponse.json(pending);
+  try {
+    const pending = await query("SELECT ticker FROM extraction_queue WHERE status = 'pending'");
+    return NextResponse.json(pending);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
@@ -17,12 +21,8 @@ export async function POST(request: Request) {
 
     console.log(`Adicionando ticker à fila: ${ticker}`);
 
-    const insert = db.prepare("INSERT OR IGNORE INTO extraction_queue (ticker, status) VALUES (?, 'pending')");
-    const result = insert.run(ticker);
-
-    if (result.changes === 0) {
-      return NextResponse.json({ message: `Ticker ${ticker} já está na fila ou já foi processado.` }, { status: 200 });
-    }
+    // No MySQL usamos INSERT IGNORE
+    await query("INSERT IGNORE INTO extraction_queue (ticker, status) VALUES (?, 'pending')", [ticker]);
 
     return NextResponse.json({ success: true, message: `Ticker ${ticker} adicionado à fila de busca.` });
   } catch (error: any) {

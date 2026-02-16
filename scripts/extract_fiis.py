@@ -3,10 +3,27 @@ from bs4 import BeautifulSoup
 import json
 import re
 import time
-import sqlite3
+import pymysql
+import ssl
 import os
 
-DB_PATH = "/home/ubuntu/gofil/gofii.db"
+# Credenciais TiDB
+DB_HOST = "gateway01.us-east-1.prod.aws.tidbcloud.com"
+DB_USER = "3LWPSrGCXLpKVj9.root"
+DB_PASS = "Wh3MlwrXLwbBDDIS"
+DB_NAME = "test"
+DB_PORT = 4000
+
+def get_connection():
+    return pymysql.connect(
+        host=DB_HOST,
+        user=DB_USER,
+        password=DB_PASS,
+        database=DB_NAME,
+        port=DB_PORT,
+        ssl={'ca': '/etc/ssl/certs/ca-certificates.crt'},
+        autocommit=True
+    )
 
 def parse_br_number(value):
     if not value or value == '-' or value.strip() == '':
@@ -78,48 +95,47 @@ def get_fii_details(ticker, headers):
 
 def run_extraction():
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
-    # 1. Buscar tickers da fila de espera
-    cursor.execute("SELECT ticker FROM extraction_queue WHERE status = 'pending'")
-    queued_tickers = [row[0] for row in cursor.fetchall()]
-    
-    # 2. Buscar tickers do ranking (para manter atualizado)
-    ranking_url = "https://investidor10.com.br/fiis/rankings/"
-    tickers_to_process = set(queued_tickers)
-    
+    conn = get_connection()
     try:
-        response = requests.get(ranking_url, headers=headers, timeout=15)
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.content, 'html.parser')
-            for a in soup.find_all('a', href=re.compile(r'/fiis/([^/]+)/$')):
-                t = a.text.strip().split('\n')[0].strip()
-                if len(t) >= 5 and t[:4].isalpha() and t[4:].isdigit():
-                    tickers_to_process.add(t)
-    except Exception as e:
-        print(f"Erro ao buscar ranking: {e}")
+        with conn.cursor() as cursor:
+            # 1. Buscar tickers da fila de espera
+            cursor.execute("SELECT ticker FROM extraction_queue WHERE status = 'pending'")
+            queued_tickers = [row[0] for row in cursor.fetchall()]
+            
+            # 2. Buscar tickers do ranking (para manter atualizado)
+            ranking_url = "https://investidor10.com.br/fiis/rankings/"
+            tickers_to_process = set(queued_tickers)
+            
+            try:
+                response = requests.get(ranking_url, headers=headers, timeout=15)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.content, 'html.parser')
+                    for a in soup.find_all('a', href=re.compile(r'/fiis/([^/]+)/$')):
+                        t = a.text.strip().split('\n')[0].strip()
+                        if len(t) >= 5 and t[:4].isalpha() and t[4:].isdigit():
+                            tickers_to_process.add(t)
+            except Exception as e:
+                print(f"Erro ao buscar ranking: {e}")
 
-    print(f"Total de tickers para processar: {len(tickers_to_process)}")
+            print(f"Total de tickers para processar: {len(tickers_to_process)}")
 
-    for ticker in list(tickers_to_process):
-        data = get_fii_details(ticker, headers)
-        if data:
-            cursor.execute("""
-                INSERT INTO fiis (ticker, name, sector, price, pvp, dy_12m, vacancy, liquidity, assets_count, dividends, updated_at)
-                VALUES (:ticker, :name, :sector, :price, :pvp, :dy_12m, :vacancy, :liquidity, :assets_count, :dividends, CURRENT_TIMESTAMP)
-                ON CONFLICT(ticker) DO UPDATE SET
-                    name=excluded.name, sector=excluded.sector, price=excluded.price, pvp=excluded.pvp,
-                    dy_12m=excluded.dy_12m, vacancy=excluded.vacancy, liquidity=excluded.liquidity,
-                    assets_count=excluded.assets_count, dividends=excluded.dividends, updated_at=CURRENT_TIMESTAMP
-            """, data)
-            # Remover da fila após processamento bem-sucedido
-            cursor.execute("DELETE FROM extraction_queue WHERE ticker = ?", (ticker,))
-            conn.commit()
-            print(f"Ticker {ticker} processado e removido da fila.")
-            time.sleep(1)
-
-    conn.close()
+            for ticker in list(tickers_to_process):
+                data = get_fii_details(ticker, headers)
+                if data:
+                    cursor.execute("""
+                        INSERT INTO fiis (ticker, name, sector, price, pvp, dy_12m, vacancy, liquidity, assets_count, dividends, updated_at)
+                        VALUES (%(ticker)s, %(name)s, %(sector)s, %(price)s, %(pvp)s, %(dy_12m)s, %(vacancy)s, %(liquidity)s, %(assets_count)s, %(dividends)s, CURRENT_TIMESTAMP)
+                        ON DUPLICATE KEY UPDATE
+                            name=VALUES(name), sector=VALUES(sector), price=VALUES(price), pvp=VALUES(pvp),
+                            dy_12m=VALUES(dy_12m), vacancy=VALUES(vacancy), liquidity=VALUES(liquidity),
+                            assets_count=VALUES(assets_count), dividends=VALUES(dividends), updated_at=CURRENT_TIMESTAMP
+                    """, data)
+                    # Remover da fila após processamento bem-sucedido
+                    cursor.execute("DELETE FROM extraction_queue WHERE ticker = %s", (ticker,))
+                    print(f"Ticker {ticker} processado e removido da fila.")
+                    time.sleep(1)
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
     run_extraction()

@@ -1,30 +1,27 @@
-import Database from 'better-sqlite3';
-import path from 'path';
+import mysql from 'mysql2/promise';
 
-const dbPath = path.join(process.cwd(), 'gofii.db');
-const db = new Database(dbPath);
+const connectionConfig = {
+  host: process.env.TIDB_HOST || 'gateway01.us-east-1.prod.aws.tidbcloud.com',
+  port: Number(process.env.TIDB_PORT) || 4000,
+  user: process.env.TIDB_USER || '3LWPSrGCXLpKVj9.root',
+  password: process.env.TIDB_PASSWORD || 'Wh3MlwrXLwbBDDIS',
+  database: process.env.TIDB_DATABASE || 'test',
+  ssl: {
+    minVersion: 'TLSv1.2',
+    rejectUnauthorized: true,
+  },
+};
 
-// Inicializar tabelas
-db.exec(`
-  CREATE TABLE IF NOT EXISTS fiis (
-    ticker TEXT PRIMARY KEY,
-    name TEXT,
-    sector TEXT,
-    price REAL,
-    pvp REAL,
-    dy_12m REAL,
-    vacancy REAL,
-    liquidity REAL,
-    assets_count INTEGER,
-    dividends TEXT, -- Armazenado como JSON string
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
+export async function query(sql: string, params?: any[]) {
+  const connection = await mysql.createConnection(connectionConfig);
+  try {
+    const [results] = await connection.execute(sql, params);
+    return results;
+  } finally {
+    await connection.end();
+  }
+}
 
-  CREATE TABLE IF NOT EXISTS extraction_queue (
-    ticker TEXT PRIMARY KEY,
-    status TEXT DEFAULT 'pending', -- pending, processing, completed, error
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-`);
-
-export default db;
+// Para manter compatibilidade com o código que usa .prepare().all() ou .run(),
+// vamos precisar ajustar as rotas, pois o mysql2 é assíncrono.
+export default { query };
