@@ -45,7 +45,6 @@ export async function POST(request: Request) {
     const topOpportunities = opportunities.slice(0, 5);
     const totalScore = topOpportunities.reduce((acc: number, f: any) => acc + f.analysis.score, 0);
     
-    let remainingAmount = investAmount;
     const suggestions = topOpportunities.map((fii: any) => {
       // Proporção baseada no Score
       const proportion = fii.analysis.score / totalScore;
@@ -62,7 +61,7 @@ export async function POST(request: Request) {
         totalCost: totalCost,
         isInWallet: wallet.some((w: any) => w.ticker === fii.ticker)
       };
-    }).filter(s => s.suggestedQty > 0);
+    }).filter((s: any) => s.suggestedQty > 0);
 
     return NextResponse.json({
       investAmount,
