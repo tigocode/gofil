@@ -28,6 +28,7 @@ def get_connection():
 def parse_br_number(value):
     if not value or value == '-' or value.strip() == '':
         return 0.0
+    # Remove R$, %, espaços e ajusta separadores decimais
     clean_value = value.replace('R$', '').replace('%', '').replace(' ', '').replace('.', '').replace(',', '.')
     try:
         return float(clean_value)
@@ -59,22 +60,32 @@ def get_fii_details(ticker, headers):
             price = 0.0
             vpa = 0.0
             
-            # Extração dos cards principais
+            # 1. Tentar capturar o preço atual de forma mais robusta
+            # O Investidor10 costuma colocar o preço em um span com id ou classe específica no topo
+            price_elem = dsoup.select_one('div.cotacao span.value') or dsoup.select_one('div._card-body span')
+            if price_elem:
+                price = parse_br_number(price_elem.text.strip())
+
+            # 2. Extração dos cards principais para outros indicadores
             cards = dsoup.find_all('div', class_='_card')
             for card in cards:
-                title = card.find('span', class_='_card-title') or card.find('span')
-                value = card.find('div', class_='_card-body') or card.find('span', class_='value')
-                if title and value:
-                    t_text = title.text.upper()
-                    v_text = value.text.strip()
-                    if 'P/VP' in t_text: pvp = parse_br_number(v_text)
-                    elif 'DIVIDEND' in t_text or 'DY' in t_text: dy = parse_br_number(v_text)
-                    elif 'COTAÇÃO' in t_text or 'PREÇO' in t_text: price = parse_br_number(v_text)
-                    elif 'VALOR PATRIMONIAL' in t_text: vpa = parse_br_number(v_text)
+                title_elem = card.find('span', class_='_card-title') or card.find('span')
+                value_elem = card.find('div', class_='_card-body') or card.find('span', class_='value')
+                if title_elem and value_elem:
+                    t_text = title_elem.text.upper()
+                    v_text = value_elem.text.strip()
+                    
+                    if 'P/VP' in t_text: 
+                        pvp = parse_br_number(v_text)
+                    elif ('DIVIDEND' in t_text or 'DY' in t_text) and '12M' in t_text: 
+                        dy = parse_br_number(v_text)
+                    elif ('COTAÇÃO' in t_text or 'PREÇO' in t_text) and price == 0: 
+                        price = parse_br_number(v_text)
+                    elif 'VALOR PATRIMONIAL' in t_text: 
+                        vpa = parse_br_number(v_text)
 
             liquidity = 0.0
             vacancy = 0.0
-            # Tentar extrair VPA de outros lugares se não achou nos cards
             for desc in dsoup.find_all('div', class_='desc'):
                 label = desc.find('span', class_='label')
                 val = desc.find('span', class_='value')
@@ -102,23 +113,25 @@ def get_fii_details(ticker, headers):
     return None
 
 def run_extraction():
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Cache-Control": "no-cache"
+    }
     conn = get_connection()
     try:
         with conn.cursor() as cursor:
-            # Garantir que a coluna vpa existe
-            try:
-                cursor.execute("ALTER TABLE fiis ADD COLUMN vpa DECIMAL(10,2) DEFAULT 0.00")
-            except:
-                pass
-
-            # 1. Buscar tickers da fila de espera
+            # 1. Buscar tickers prioritários (os que estão na carteira)
+            cursor.execute("SELECT ticker FROM wallet")
+            wallet_tickers = [row[0] for row in cursor.fetchall()]
+            
+            # 2. Buscar tickers da fila
             cursor.execute("SELECT ticker FROM extraction_queue WHERE status = 'pending'")
             queued_tickers = [row[0] for row in cursor.fetchall()]
             
-            # 2. Buscar tickers do ranking
+            # 3. Buscar tickers do ranking
             ranking_url = "https://investidor10.com.br/fiis/rankings/"
-            tickers_to_process = set(queued_tickers)
+            tickers_to_process = set(wallet_tickers + queued_tickers)
             
             try:
                 response = requests.get(ranking_url, headers=headers, timeout=15)
@@ -145,8 +158,8 @@ def run_extraction():
                             assets_count=VALUES(assets_count), dividends=VALUES(dividends), vpa=VALUES(vpa), updated_at=CURRENT_TIMESTAMP
                     """, data)
                     cursor.execute("DELETE FROM extraction_queue WHERE ticker = %s", (ticker,))
-                    print(f"Ticker {ticker} processado (VPA: {data['vpa']}).")
-                    time.sleep(1)
+                    print(f"Ticker {ticker} atualizado (Preço: R$ {data['price']}).")
+                    time.sleep(1.5) # Aumentar delay para evitar bloqueios
     finally:
         conn.close()
 
