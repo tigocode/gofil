@@ -2,37 +2,39 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { FaMagnifyingGlass, FaPlus, FaChartLine, FaWallet, FaTrophy } from 'react-icons/fa6';
-import SearchFiiModal from './SearchFiiModal'; // Importando a Busca
-import FiiDetailsModal from './FiiDetailsModal'; // Importando o Detalhe
+import SearchFiiModal from './SearchFiiModal';
+import FiiDetailsModal from './FiiDetailsModal';
 import { FiiData } from '@/src/data/mocks';
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const isActive = (path: string) => pathname === path;
 
-  // ESTADOS GLOBAIS DA NAVBAR
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedFii, setSelectedFii] = useState<FiiData | null>(null);
 
-  // Estilos Desktop
   const linkBaseStyle = "text-sm font-bold transition-all px-4 py-2 rounded-lg flex items-center gap-2";
   const activeStyle = "bg-slate-800 text-white shadow-inner";
   const inactiveStyle = "text-slate-400 hover:text-white hover:bg-slate-800/50";
 
-  // Estilos Mobile
   const mobileLinkBase = "flex flex-col items-center justify-center w-full h-full gap-1 pt-1";
   const mobileActive = "text-blue-500";
   const mobileInactive = "text-slate-500 hover:text-slate-300";
 
+  const handleUpdate = () => {
+    // Forçar atualização da página atual para refletir mudanças na carteira
+    router.refresh();
+  };
+
   return (
     <>
-      {/* --- MODAIS GLOBAIS (Renderizados condicionalmente) --- */}
       {isSearchOpen && (
         <SearchFiiModal 
           onClose={() => setIsSearchOpen(false)} 
-          onSelect={(fii) => setSelectedFii(fii)} // Ao selecionar na busca, abre o detalhe
+          onSelect={(fii) => setSelectedFii(fii)}
         />
       )}
 
@@ -40,15 +42,14 @@ export default function Navbar() {
         <FiiDetailsModal 
           fii={selectedFii} 
           onClose={() => setSelectedFii(null)} 
+          onUpdate={handleUpdate}
         />
       )}
 
-      {/* --- TOP BAR --- */}
       <nav className="sticky top-0 z-40 w-full border-b border-slate-800 bg-[#0b1121]/95 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 gap-4">
             
-            {/* 1. LOGO */}
             <Link href="/dashboard" className="flex items-center gap-3 shrink-0">
               <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-blue-500/20">
                 GO
@@ -58,7 +59,6 @@ export default function Navbar() {
               </span>
             </Link>
 
-            {/* 2. NAVEGAÇÃO DESKTOP */}
             <div className="hidden md:flex items-center gap-1 absolute left-1/2 transform -translate-x-1/2">
               <Link href="/dashboard" className={`${linkBaseStyle} ${isActive('/dashboard') ? activeStyle : inactiveStyle}`}>
                 Dashboard
@@ -71,10 +71,7 @@ export default function Navbar() {
               </Link>
             </div>
 
-            {/* 3. AÇÕES (Busca e Botão Novo) */}
             <div className="flex items-center gap-2 sm:gap-3 flex-1 justify-end md:flex-none md:justify-start min-w-0">
-              
-              {/* Barra de Busca (Visual - Abre o Modal de Busca ao clicar) */}
               <div 
                 className="relative flex-1 max-w-[180px] md:max-w-[220px] cursor-pointer group"
                 onClick={() => setIsSearchOpen(true)}
@@ -85,7 +82,6 @@ export default function Navbar() {
                 </div>
               </div>
 
-              {/* Botão Novo FII */}
               <button 
                 onClick={() => setIsSearchOpen(true)}
                 className="flex items-center justify-center gap-2 border border-slate-700 bg-slate-800/50 hover:bg-blue-600 hover:border-blue-500 text-slate-300 hover:text-white h-8 w-8 sm:h-9 sm:w-auto sm:px-4 rounded-full text-xs font-bold transition-all shrink-0"
@@ -93,14 +89,11 @@ export default function Navbar() {
                 <FaPlus className="text-blue-500 sm:text-inherit" />
                 <span className="hidden sm:inline">Novo</span>
               </button>
-
             </div>
-
           </div>
         </div>
       </nav>
 
-      {/* --- BOTTOM BAR (Mobile) --- */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0b1121] border-t border-slate-800 h-16 pb-safe">
         <div className="flex justify-around items-center h-full max-w-md mx-auto">
            <Link href="/dashboard" className={`${mobileLinkBase} ${isActive('/dashboard') ? mobileActive : mobileInactive}`}>

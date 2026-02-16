@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { MOCK_FIIS, FiiData } from '@/src/data/mocks'; // Atenção ao caminho @/src/
+import { useState, useEffect } from 'react';
+import { FiiData } from '@/src/data/mocks';
 import FiiCard from '@/src/components/FiiCard';
-import FiiDetailsModal from '@/src/components/FiiDetailsModal'; // Importando o Modal
+import FiiDetailsModal from '@/src/components/FiiDetailsModal';
 import { FaLayerGroup } from "react-icons/fa6"; 
 
 const FILTERS = ["Todos", "Logística", "Shopping", "Papel", "Energia", "Híbrido"];
@@ -11,11 +11,29 @@ const FILTERS = ["Todos", "Logística", "Shopping", "Papel", "Energia", "Híbrid
 export default function DashboardPage() {
   const [activeFilter, setActiveFilter] = useState("Todos");
   const [searchText, setSearchText] = useState("");
-  
-  // 1. ESTADO PARA CONTROLAR O MODAL
+  const [marketFiis, setMarketFiis] = useState<FiiData[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedFii, setSelectedFii] = useState<FiiData | null>(null);
 
-  const filteredFiis = MOCK_FIIS.filter(fii => {
+  const loadData = async () => {
+    try {
+      const res = await fetch('/api/fiis');
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setMarketFiis(data);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar FIIs:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const filteredFiis = marketFiis.filter(fii => {
     const matchesFilter = activeFilter === "Todos" || fii.sector === activeFilter;
     const matchesSearch = fii.ticker.includes(searchText.toUpperCase()) || fii.name.toLowerCase().includes(searchText.toLowerCase());
     return matchesFilter && matchesSearch;
@@ -23,18 +41,15 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen p-6 md:p-10">
-      
-      {/* 2. RENDERIZA O MODAL SE TIVER UM FII SELECIONADO */}
       {selectedFii && (
         <FiiDetailsModal 
           fii={selectedFii} 
           onClose={() => setSelectedFii(null)} 
+          onUpdate={loadData}
         />
       )}
 
       <div className="max-w-7xl mx-auto">
-        
-        {/* Header */}
         <div className="mb-10">
           <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
             Análise de FIIs <span className="text-blue-500">6 Pilares</span>
@@ -45,7 +60,6 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Filtros */}
         <div className="flex flex-col md:flex-row gap-6 mb-10 justify-between items-start md:items-center">
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide w-full md:w-auto">
             {FILTERS.map(filter => (
@@ -62,26 +76,37 @@ export default function DashboardPage() {
               </button>
             ))}
           </div>
+          
+          <div className="relative w-full md:w-64">
+            <input 
+              type="text"
+              placeholder="Buscar FII..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className="w-full bg-[#1e293b] border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+            />
+          </div>
         </div>
 
-        {/* Grid de Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredFiis.length > 0 ? (
-            filteredFiis.map(fii => (
-              <FiiCard 
-                key={fii.ticker} 
-                data={fii} 
-                // 3. AQUI ESTÁ O SEGREDO: PASSANDO A FUNÇÃO DE ABRIR
-                onClick={() => setSelectedFii(fii)} 
-              />
-            ))
-          ) : (
-            <div className="col-span-full text-center text-slate-500 py-20">
-              Nenhum ativo encontrado.
-            </div>
-          )}
-        </div>
-
+        {loading ? (
+          <div className="text-center py-20 text-slate-500 animate-pulse">Carregando ativos...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredFiis.length > 0 ? (
+              filteredFiis.map(fii => (
+                <FiiCard 
+                  key={fii.ticker} 
+                  data={fii} 
+                  onClick={() => setSelectedFii(fii)} 
+                />
+              ))
+            ) : (
+              <div className="col-span-full text-center text-slate-500 py-20">
+                Nenhum ativo encontrado.
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </main>
   );

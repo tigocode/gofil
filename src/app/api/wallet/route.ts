@@ -3,9 +3,16 @@ import { query } from '@/src/lib/db';
 
 export async function GET() {
   try {
-    const items = await query('SELECT * FROM wallet ORDER BY added_at DESC');
-    return NextResponse.json(items);
+    const items: any = await query('SELECT * FROM wallet ORDER BY added_at DESC');
+    // Garantir que campos numéricos sejam de fato números
+    const parsedItems = items.map((item: any) => ({
+      ...item,
+      qty: Number(item.qty || 0),
+      avg_price: Number(item.avg_price || 0)
+    }));
+    return NextResponse.json(parsedItems);
   } catch (error) {
+    console.error('Erro ao buscar carteira:', error);
     return NextResponse.json({ error: 'Erro ao buscar carteira' }, { status: 500 });
   }
 }
@@ -16,10 +23,9 @@ export async function POST(request: Request) {
     if (!ticker) return NextResponse.json({ error: 'Ticker é obrigatório' }, { status: 400 });
 
     const tickerUpper = ticker.toUpperCase();
-    const quantity = qty || 0;
-    const price = avg_price || 0;
+    const quantity = Number(qty || 0);
+    const price = Number(avg_price || 0);
 
-    // No MySQL usamos ON DUPLICATE KEY UPDATE
     await query(`
       INSERT INTO wallet (ticker, qty, avg_price, added_at)
       VALUES (?, ?, ?, CURRENT_TIMESTAMP)

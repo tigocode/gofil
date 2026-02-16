@@ -4,9 +4,15 @@ import { query } from '@/src/lib/db';
 export async function GET() {
   try {
     const fiis: any = await query('SELECT * FROM fiis ORDER BY ticker ASC');
-    // Parse dividends JSON
+    // Garantir que campos numéricos sejam de fato números e parse dividends JSON
     const parsedFiis = fiis.map((fii: any) => ({
       ...fii,
+      price: Number(fii.price || 0),
+      pvp: Number(fii.pvp || 0),
+      dy_12m: Number(fii.dy_12m || 0),
+      vacancy: Number(fii.vacancy || 0),
+      liquidity: Number(fii.liquidity || 0),
+      assets_count: Number(fii.assets_count || 0),
       dividends: typeof fii.dividends === 'string' ? JSON.parse(fii.dividends || '[]') : fii.dividends
     }));
     return NextResponse.json(parsedFiis);

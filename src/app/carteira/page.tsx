@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MOCK_WALLET, MOCK_FIIS, WalletItem, FiiData } from "@/src/data/mocks";
+import { WalletItem, FiiData } from "@/src/data/mocks";
 import WalletRow from "@/src/components/WalletRow";
 import { analyzeFII } from "@/src/utils/fii-analyzer";
 import { FaWallet, FaHandHoldingDollar, FaChartSimple } from "react-icons/fa6";
 
 export default function CarteiraPage() {
   const [wallet, setWallet] = useState<WalletItem[]>([]);
-  const [marketFiis, setMarketFiis] = useState<FiiData[]>(MOCK_FIIS);
+  const [marketFiis, setMarketFiis] = useState<FiiData[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadData = async () => {
@@ -21,7 +21,7 @@ export default function CarteiraPage() {
       const fiisData = await fiisRes.json();
       const walletData = await walletRes.json();
 
-      if (Array.isArray(fiisData) && fiisData.length > 0) {
+      if (Array.isArray(fiisData)) {
         setMarketFiis(fiisData);
       }
       
@@ -63,7 +63,9 @@ export default function CarteiraPage() {
     if (!marketData) return null;
 
     const currentVal = item.qty * marketData.price;
-    const lastDiv = marketData.dividends[marketData.dividends.length - 1] || 0;
+    const lastDiv = Array.isArray(marketData.dividends) && marketData.dividends.length > 0 
+      ? marketData.dividends[marketData.dividends.length - 1] 
+      : 0;
     const income = item.qty * lastDiv;
     const analysis = analyzeFII(marketData);
 
@@ -102,9 +104,6 @@ export default function CarteiraPage() {
             <h1 className="text-3xl font-bold text-white mb-2">Minha Carteira</h1>
             <p className="text-slate-400 text-sm">Acompanhamento consolidado dos seus ativos.</p>
           </div>
-          <button className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg text-sm font-bold transition-all shadow-lg shadow-blue-500/20">
-            + Novo Aporte
-          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
@@ -148,7 +147,7 @@ export default function CarteiraPage() {
             
             {walletFullDataWithCalculations.map((item, index) => (
                 <WalletRow 
-                    key={index} 
+                    key={item!.walletItem.ticker} 
                     walletItem={item!.walletItem} 
                     fiiData={item!.marketData} 
                     onRemove={handleRemove}
