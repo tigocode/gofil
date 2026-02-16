@@ -51,10 +51,10 @@ export function analyzeFII(fii: FiiData): AnalysisResult {
       warnings.push({ pillar: "Liquidez", msg: "Baixa liquidez diária.", severity: "high" as const });
   }
 
-  // Veredito
+  // Veredito - CORRIGIDO: Score >= 80 é obrigatoriamente Oportunidade
   let veredict = { label: "Observar", color: "text-amber-400", bg: "bg-amber-500/10" };
   
-  if (score >= 80 && warnings.filter(w => w.severity === 'high').length === 0) {
+  if (score >= 80) {
       veredict = { label: "Oportunidade", color: "text-emerald-400", bg: "bg-emerald-500/10" };
   } else if (score < 50) {
       veredict = { label: "Cilada", color: "text-red-400", bg: "bg-red-500/10" };
