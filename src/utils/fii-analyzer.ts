@@ -3,7 +3,7 @@ import { FiiData } from "@/src/data/mocks";
 export interface AnalysisResult {
   score: number;
   warnings: { pillar: string; msg: string; severity: 'high' | 'medium' | 'low' }[];
-  veredict: { label: string; color: string; bg: string }; // Removi o 'icon' daqui
+  veredict: { label: string; color: string; bg: string };
   cvStatus: string;
   dyStatus: string;
   pvpStatus: string;
@@ -44,6 +44,7 @@ export function analyzeFII(fii: FiiData): AnalysisResult {
       score -= 20;
       warnings.push({ pillar: "Vacância", msg: `Vacância alta de ${fii.vacancy}%.`, severity: "high" as const });
   }
+  
   // 4. Liquidez
   if (fii.liquidity < 500000) {
       score -= 15;

@@ -1,16 +1,33 @@
-import { FiiData, MOCK_WALLET } from "@/src/data/mocks"; // Verifique se o caminho bate com sua pasta
-import { analyzeFII } from "@/src/utils/fii-analyzer";
-import { FaBuilding, FaChartPie, FaBomb, FaThumbsUp, FaEye, FaStar } from "react-icons/fa6";
+'use client';
 
-// Unificamos a interface aqui
+import { useState, useEffect } from 'react';
+import { FiiData } from "@/src/data/mocks";
+import { analyzeFII } from "@/src/utils/fii-analyzer";
+import { FaBuilding, FaBomb, FaThumbsUp, FaEye, FaStar } from "react-icons/fa6";
+
 interface FiiCardProps {
-  data: FiiData;
+  data: FiiData & { vpa?: number };
   onClick?: () => void; 
 }
 
 export default function FiiCard({ data, onClick }: FiiCardProps) {
+  const [isInWallet, setIsInWallet] = useState(false);
   const analysis = analyzeFII(data);
-  const isInWallet = MOCK_WALLET.some((item) => item.ticker === data.ticker);
+
+  useEffect(() => {
+    const checkWallet = async () => {
+      try {
+        const res = await fetch('/api/wallet');
+        const wallet = await res.json();
+        if (Array.isArray(wallet)) {
+          setIsInWallet(wallet.some(item => item.ticker === data.ticker));
+        }
+      } catch (err) {
+        console.error("Erro ao verificar carteira no card:", err);
+      }
+    };
+    checkWallet();
+  }, [data.ticker]);
 
   const dyColor = analysis.dyStatus === "Risco Alto" ? "text-red-400" : "text-emerald-400";
   const pvpColor = analysis.pvpStatus === "Justo" ? "text-emerald-400" : analysis.pvpStatus === "Caro" ? "text-red-400" : "text-amber-400";
@@ -41,7 +58,7 @@ export default function FiiCard({ data, onClick }: FiiCardProps) {
         </div>
       )}
 
-      {/* Cabeçalho Ajustado */}
+      {/* Cabeçalho */}
       <div className="flex justify-between items-start mb-10 relative z-10 top-6">
         <div>
           <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-blue-400 uppercase tracking-wider bg-blue-900/30 px-2 py-1 rounded mb-4 border border-blue-500/20">
@@ -67,16 +84,16 @@ export default function FiiCard({ data, onClick }: FiiCardProps) {
           <p className="font-semibold text-sm text-slate-100">R$ {data.price.toFixed(2)}</p>
         </div>
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">DY (12m)</p>
-          <p className={`font-semibold text-sm ${dyColor}`}>{data.dy_12m}%</p>
+          <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">VPA</p>
+          <p className="font-semibold text-sm text-slate-100">R$ {(data.vpa || 0).toFixed(2)}</p>
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">P/VP</p>
           <p className={`font-semibold text-sm ${pvpColor}`}>{data.pvp}</p>
         </div>
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">Consistência</p>
-          <p className="font-semibold text-sm text-slate-200">{analysis.cvStatus}</p>
+          <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">DY (12m)</p>
+          <p className={`font-semibold text-sm ${dyColor}`}>{data.dy_12m}%</p>
         </div>
       </div>
 

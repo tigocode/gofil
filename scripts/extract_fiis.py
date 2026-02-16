@@ -57,6 +57,9 @@ def get_fii_details(ticker, headers):
             pvp = 0.0
             dy = 0.0
             price = 0.0
+            vpa = 0.0
+            
+            # Extração dos cards principais
             cards = dsoup.find_all('div', class_='_card')
             for card in cards:
                 title = card.find('span', class_='_card-title') or card.find('span')
@@ -67,15 +70,19 @@ def get_fii_details(ticker, headers):
                     if 'P/VP' in t_text: pvp = parse_br_number(v_text)
                     elif 'DIVIDEND' in t_text or 'DY' in t_text: dy = parse_br_number(v_text)
                     elif 'COTAÇÃO' in t_text or 'PREÇO' in t_text: price = parse_br_number(v_text)
+                    elif 'VALOR PATRIMONIAL' in t_text: vpa = parse_br_number(v_text)
 
             liquidity = 0.0
             vacancy = 0.0
+            # Tentar extrair VPA de outros lugares se não achou nos cards
             for desc in dsoup.find_all('div', class_='desc'):
                 label = desc.find('span', class_='label')
                 val = desc.find('span', class_='value')
                 if label and val:
-                    if 'Liquidez' in label.text: liquidity = parse_br_number(val.text)
-                    elif 'Vacância' in label.text: vacancy = parse_br_number(val.text)
+                    l_text = label.text.upper()
+                    if 'LIQUIDEZ' in l_text: liquidity = parse_br_number(val.text)
+                    elif 'VACÂNCIA' in l_text: vacancy = parse_br_number(val.text)
+                    elif 'VALOR PATRIMONIAL' in l_text and vpa == 0: vpa = parse_br_number(val.text)
 
             return {
                 "ticker": ticker,
@@ -87,7 +94,8 @@ def get_fii_details(ticker, headers):
                 "vacancy": vacancy,
                 "liquidity": liquidity,
                 "assets_count": 10,
-                "dividends": json.dumps([round(dy/12, 2)] * 12)
+                "dividends": json.dumps([round(dy/12, 2)] * 12),
+                "vpa": vpa
             }
     except Exception as e:
         print(f"Erro ao processar {ticker}: {e}")
@@ -98,11 +106,17 @@ def run_extraction():
     conn = get_connection()
     try:
         with conn.cursor() as cursor:
+            # Garantir que a coluna vpa existe
+            try:
+                cursor.execute("ALTER TABLE fiis ADD COLUMN vpa DECIMAL(10,2) DEFAULT 0.00")
+            except:
+                pass
+
             # 1. Buscar tickers da fila de espera
             cursor.execute("SELECT ticker FROM extraction_queue WHERE status = 'pending'")
             queued_tickers = [row[0] for row in cursor.fetchall()]
             
-            # 2. Buscar tickers do ranking (para manter atualizado)
+            # 2. Buscar tickers do ranking
             ranking_url = "https://investidor10.com.br/fiis/rankings/"
             tickers_to_process = set(queued_tickers)
             
@@ -123,16 +137,15 @@ def run_extraction():
                 data = get_fii_details(ticker, headers)
                 if data:
                     cursor.execute("""
-                        INSERT INTO fiis (ticker, name, sector, price, pvp, dy_12m, vacancy, liquidity, assets_count, dividends, updated_at)
-                        VALUES (%(ticker)s, %(name)s, %(sector)s, %(price)s, %(pvp)s, %(dy_12m)s, %(vacancy)s, %(liquidity)s, %(assets_count)s, %(dividends)s, CURRENT_TIMESTAMP)
+                        INSERT INTO fiis (ticker, name, sector, price, pvp, dy_12m, vacancy, liquidity, assets_count, dividends, vpa, updated_at)
+                        VALUES (%(ticker)s, %(name)s, %(sector)s, %(price)s, %(pvp)s, %(dy_12m)s, %(vacancy)s, %(liquidity)s, %(assets_count)s, %(dividends)s, %(vpa)s, CURRENT_TIMESTAMP)
                         ON DUPLICATE KEY UPDATE
                             name=VALUES(name), sector=VALUES(sector), price=VALUES(price), pvp=VALUES(pvp),
                             dy_12m=VALUES(dy_12m), vacancy=VALUES(vacancy), liquidity=VALUES(liquidity),
-                            assets_count=VALUES(assets_count), dividends=VALUES(dividends), updated_at=CURRENT_TIMESTAMP
+                            assets_count=VALUES(assets_count), dividends=VALUES(dividends), vpa=VALUES(vpa), updated_at=CURRENT_TIMESTAMP
                     """, data)
-                    # Remover da fila após processamento bem-sucedido
                     cursor.execute("DELETE FROM extraction_queue WHERE ticker = %s", (ticker,))
-                    print(f"Ticker {ticker} processado e removido da fila.")
+                    print(f"Ticker {ticker} processado (VPA: {data['vpa']}).")
                     time.sleep(1)
     finally:
         conn.close()
