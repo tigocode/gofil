@@ -1,27 +1,52 @@
 'use client';
 
-import { MOCK_WALLET, MOCK_FIIS } from "@/src/data/mocks";
+import { useState, useEffect } from 'react';
+import { MOCK_WALLET, MOCK_FIIS, WalletItem, FiiData } from "@/src/data/mocks";
 import WalletRow from "@/src/components/WalletRow";
 import { analyzeFII } from "@/src/utils/fii-analyzer";
 import { FaWallet, FaHandHoldingDollar, FaChartSimple } from "react-icons/fa6";
 
 export default function CarteiraPage() {
-  
+  const [wallet, setWallet] = useState<WalletItem[]>(MOCK_WALLET);
+  const [marketFiis, setMarketFiis] = useState<FiiData[]>(MOCK_FIIS);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Carregar dados reais do banco de dados
+    fetch('/api/fiis')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setMarketFiis(data);
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Erro ao carregar FIIs:", err);
+        setLoading(false);
+      });
+  }, []);
+
+  const handleRemove = (ticker: string) => {
+    if (confirm(`Deseja remover ${ticker} da sua carteira?`)) {
+      setWallet(prev => prev.filter(item => item.ticker !== ticker));
+    }
+  };
+
   // Lógica de Consolidação dos Dados
-  const walletFullDataWithCalculations = MOCK_WALLET.map(item => {
-    const marketData = MOCK_FIIS.find(f => f.ticker === item.ticker);
+  const walletFullDataWithCalculations = wallet.map(item => {
+    const marketData = marketFiis.find(f => f.ticker === item.ticker);
     
-    if (!marketData) return null; // Segurança caso o ticker não exista
+    if (!marketData) return null;
 
     const currentVal = item.qty * marketData.price;
-    const lastDiv = marketData.dividends[marketData.dividends.length - 1];
+    const lastDiv = marketData.dividends[marketData.dividends.length - 1] || 0;
     const income = item.qty * lastDiv;
     const analysis = analyzeFII(marketData);
 
     return { walletItem: item, marketData, currentVal, income, score: analysis.score };
-  }).filter(item => item !== null); // Remove nulos
+  }).filter(item => item !== null);
 
-  // Cálculo final usando reduce
   const { totalPatrimony, totalIncome, weightedScoreSum } = walletFullDataWithCalculations.reduce(
     (acc, item) => ({
       totalPatrimony: acc.totalPatrimony + item!.currentVal,
@@ -31,24 +56,24 @@ export default function CarteiraPage() {
     { totalPatrimony: 0, totalIncome: 0, weightedScoreSum: 0 }
   );
 
-  const walletFullData = walletFullDataWithCalculations.map(item => ({
-    walletItem: item!.walletItem,
-    marketData: item!.marketData,
-  }));
-
-  // Cálculo final do Score Ponderado (Score médio baseado no dinheiro investido)
   const portfolioScore = totalPatrimony > 0 ? Math.round(weightedScoreSum / totalPatrimony) : 0;
   
-  // Cor do Score Geral
   let scoreColor = 'text-red-400';
   if (portfolioScore > 70) scoreColor = 'text-emerald-400';
   else if (portfolioScore > 50) scoreColor = 'text-amber-400';
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-white">
+        <div className="animate-pulse">Carregando carteira...</div>
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-screen p-6 md:p-10">
       <div className="max-w-7xl mx-auto">
 
-        {/* Header */}
         <div className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">Minha Carteira</h1>
@@ -59,10 +84,7 @@ export default function CarteiraPage() {
           </button>
         </div>
 
-        {/* Cards de Resumo (KPIs) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-          
-          {/* Card 1: Patrimônio */}
           <div className="glass-panel p-6 rounded-xl relative overflow-hidden border-l-4 border-l-blue-500">
             <div className="relative z-10">
               <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Patrimônio Total</p>
@@ -73,7 +95,6 @@ export default function CarteiraPage() {
             <FaWallet className="absolute right-4 bottom-4 text-slate-700/20 text-6xl" />
           </div>
 
-          {/* Card 2: Renda Mensal */}
           <div className="glass-panel p-6 rounded-xl relative overflow-hidden border-l-4 border-l-emerald-500">
             <div className="relative z-10">
               <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Renda Mensal Est.</p>
@@ -87,7 +108,6 @@ export default function CarteiraPage() {
             <FaHandHoldingDollar className="absolute right-4 bottom-4 text-slate-700/20 text-6xl" />
           </div>
 
-          {/* Card 3: Score da Carteira */}
           <div className="glass-panel p-6 rounded-xl relative overflow-hidden border-l-4 border-l-amber-500">
             <div className="relative z-10">
               <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Qualidade da Carteira</p>
@@ -100,19 +120,19 @@ export default function CarteiraPage() {
           </div>
         </div>
 
-        {/* Lista de Ativos */}
         <div className="flex flex-col gap-4">
             <h3 className="text-slate-400 font-bold text-xs uppercase tracking-widest mb-2 px-1">Detalhamento dos Ativos</h3>
             
-            {walletFullData.map((item, index) => (
+            {walletFullDataWithCalculations.map((item, index) => (
                 <WalletRow 
                     key={index} 
                     walletItem={item!.walletItem} 
                     fiiData={item!.marketData} 
+                    onRemove={handleRemove}
                 />
             ))}
 
-            {walletFullData.length === 0 && (
+            {walletFullDataWithCalculations.length === 0 && (
                 <div className="text-center py-20 text-slate-500 glass-panel rounded-xl">
                     Sua carteira está vazia. Comece adicionando ativos!
                 </div>

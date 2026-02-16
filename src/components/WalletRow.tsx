@@ -1,13 +1,14 @@
 import { FiiData, WalletItem } from "@/src/data/mocks";
 import { analyzeFII } from "@/src/utils/fii-analyzer";
-import { FaArrowTrendUp, FaArrowTrendDown, FaWallet } from "react-icons/fa6";
+import { FaArrowTrendUp, FaArrowTrendDown, FaWallet, FaTrashCan } from "react-icons/fa6";
 
 interface WalletRowProps {
   walletItem: WalletItem;
   fiiData: FiiData;
+  onRemove?: (ticker: string) => void;
 }
 
-export default function WalletRow({ walletItem, fiiData }: WalletRowProps) {
+export default function WalletRow({ walletItem, fiiData, onRemove }: WalletRowProps) {
   const analysis = analyzeFII(fiiData);
 
   // Cálculos Financeiros
@@ -26,7 +27,7 @@ export default function WalletRow({ walletItem, fiiData }: WalletRowProps) {
   const IconTrend = isProfit ? FaArrowTrendUp : FaArrowTrendDown;
 
   return (
-    <div className="glass-panel rounded-xl p-5 mb-4 flex flex-col lg:flex-row items-center justify-between gap-6 hover:bg-slate-800/60 transition-all border-l-4 border-l-transparent hover:border-l-blue-500">
+    <div className="glass-panel rounded-xl p-5 mb-4 flex flex-col lg:flex-row items-center justify-between gap-6 hover:bg-slate-800/60 transition-all border-l-4 border-l-transparent hover:border-l-blue-500 group">
       
       {/* 1. Identificação do Ativo */}
       <div className="flex items-center gap-4 w-full lg:w-1/4">
@@ -47,7 +48,7 @@ export default function WalletRow({ walletItem, fiiData }: WalletRowProps) {
       </div>
 
       {/* 2. Grid de Dados Financeiros */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 w-full lg:w-3/4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 w-full lg:w-2/3">
         
         {/* Preço Médio */}
         <div>
@@ -78,7 +79,17 @@ export default function WalletRow({ walletItem, fiiData }: WalletRowProps) {
           <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">Renda Mensal</p>
           <p className="font-bold text-emerald-400">R$ {monthlyIncome.toFixed(2)}</p>
         </div>
+      </div>
 
+      {/* 3. Ações */}
+      <div className="flex items-center justify-end lg:w-auto w-full">
+        <button 
+          onClick={() => onRemove && onRemove(fiiData.ticker)}
+          className="p-3 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-400/10 transition-all opacity-0 group-hover:opacity-100"
+          title="Remover da Carteira"
+        >
+          <FaTrashCan size={18} />
+        </button>
       </div>
     </div>
   );
