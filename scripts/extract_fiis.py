@@ -113,9 +113,10 @@ def run_extraction():
                     dy_12m=excluded.dy_12m, vacancy=excluded.vacancy, liquidity=excluded.liquidity,
                     assets_count=excluded.assets_count, dividends=excluded.dividends, updated_at=CURRENT_TIMESTAMP
             """, data)
-            # Marcar como concluído na fila se existia
-            cursor.execute("UPDATE extraction_queue SET status = 'completed' WHERE ticker = ?", (ticker,))
+            # Remover da fila após processamento bem-sucedido
+            cursor.execute("DELETE FROM extraction_queue WHERE ticker = ?", (ticker,))
             conn.commit()
+            print(f"Ticker {ticker} processado e removido da fila.")
             time.sleep(1)
 
     conn.close()

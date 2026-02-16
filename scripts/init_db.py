@@ -26,6 +26,9 @@ def init_db():
             status TEXT DEFAULT 'pending',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+        -- Garantir que a tabela tenha as colunas corretas se já existir
+        -- SQLite não suporta IF NOT EXISTS em ADD COLUMN facilmente, mas o INSERT vai falhar se a coluna faltar no runtime.
+        
     """)
     conn.commit()
     conn.close()

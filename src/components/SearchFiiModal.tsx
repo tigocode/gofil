@@ -12,24 +12,33 @@ interface SearchFiiModalProps {
 export default function SearchFiiModal({ onClose, onSelect }: SearchFiiModalProps) {
   const [query, setQuery] = useState("");
   const [fiis, setFiis] = useState<FiiData[]>([]);
+  const [pendingFiis, setPendingFiis] = useState<{ticker: string}[]>([]);
   const [loading, setLoading] = useState(true);
   const [addingToQueue, setAddingToQueue] = useState(false);
   const [queueMessage, setQueueMessage] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const loadData = async () => {
+    try {
+      const [fiisRes, queueRes] = await Promise.all([
+        fetch('/api/fiis'),
+        fetch('/api/queue')
+      ]);
+      const fiisData = await fiisRes.json();
+      const queueData = await queueRes.json();
+      
+      if (Array.isArray(fiisData)) setFiis(fiisData);
+      if (Array.isArray(queueData)) setPendingFiis(queueData);
+    } catch (err) {
+      console.error("Erro ao carregar dados:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     inputRef.current?.focus();
-    // Buscar FIIs do banco de dados (via API)
-    fetch('/api/fiis')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) setFiis(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error("Erro ao carregar FIIs:", err);
-        setLoading(false);
-      });
+    loadData();
   }, []);
 
   const filtered = query === "" 
@@ -56,6 +65,7 @@ export default function SearchFiiModal({ onClose, onSelect }: SearchFiiModalProp
       if (res.ok) {
         setQueueMessage(`Sucesso! O ticker ${query.toUpperCase()} será processado na próxima busca.`);
         setQuery("");
+        loadData(); // Recarregar a lista de pendentes
       } else {
         setQueueMessage(data.error || "Erro ao adicionar à fila.");
       }
@@ -118,8 +128,27 @@ export default function SearchFiiModal({ onClose, onSelect }: SearchFiiModalProp
               )}
 
               {query === "" && !queueMessage && (
-                <div className="p-8 text-center text-slate-500 text-xs">
-                  <p>Busque por um ticker para adicionar à sua carteira.</p>
+                <div className="p-4">
+                  <div className="text-center text-slate-500 text-xs mb-6">
+                    <p>Busque por um ticker para adicionar à sua carteira.</p>
+                  </div>
+                  
+                  {pendingFiis.length > 0 && (
+                    <div className="mt-4 border-t border-slate-700/50 pt-4">
+                      <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 px-2">
+                        Aguardando Extração ({pendingFiis.length})
+                      </h5>
+                      <div className="grid grid-cols-2 gap-2 px-2">
+                        {pendingFiis.map(item => (
+                          <div key={item.ticker} className="flex items-center gap-2 p-2 rounded bg-slate-800/50 border border-slate-700/50 text-slate-300 text-xs">
+                            <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                            <span className="font-bold">{item.ticker}</span>
+                            <span className="text-[10px] text-slate-500 italic ml-auto">Pendente</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

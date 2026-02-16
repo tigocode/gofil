@@ -8,14 +8,25 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { ticker } = await request.json();
-    if (!ticker) return NextResponse.json({ error: 'Ticker é obrigatório' }, { status: 400 });
+    const body = await request.json();
+    const ticker = body.ticker?.toUpperCase().trim();
+    
+    if (!ticker || ticker.length < 5) {
+      return NextResponse.json({ error: 'Ticker inválido (mínimo 5 caracteres)' }, { status: 400 });
+    }
 
-    const insert = db.prepare("INSERT OR IGNORE INTO extraction_queue (ticker) VALUES (?)");
-    insert.run(ticker.toUpperCase());
+    console.log(`Adicionando ticker à fila: ${ticker}`);
+
+    const insert = db.prepare("INSERT OR IGNORE INTO extraction_queue (ticker, status) VALUES (?, 'pending')");
+    const result = insert.run(ticker);
+
+    if (result.changes === 0) {
+      return NextResponse.json({ message: `Ticker ${ticker} já está na fila ou já foi processado.` }, { status: 200 });
+    }
 
     return NextResponse.json({ success: true, message: `Ticker ${ticker} adicionado à fila de busca.` });
-  } catch (error) {
-    return NextResponse.json({ error: 'Erro ao adicionar à fila' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Erro na API /api/queue:', error);
+    return NextResponse.json({ error: 'Erro interno ao adicionar à fila: ' + error.message }, { status: 500 });
   }
 }
