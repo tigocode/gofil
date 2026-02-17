@@ -4,7 +4,6 @@ import json
 import re
 import time
 import pymysql
-import ssl
 import os
 
 # Credenciais TiDB
@@ -21,16 +20,30 @@ def get_connection():
         password=DB_PASS,
         database=DB_NAME,
         port=DB_PORT,
-        ssl={'ca': '/etc/ssl/certs/ca-certificates.crt'},
-        autocommit=True
+        autocommit=True,
+        ssl={'ssl': True}
     )
 
 def parse_br_number(value):
     if not value or value == '-' or value.strip() == '':
         return 0.0
+    # Remove R$, %, espaços e pontos de milhar, troca vírgula por ponto
     clean_value = value.replace('R$', '').replace('%', '').replace(' ', '').replace('.', '').replace(',', '.')
+    
+    # Trata sufixos M (Milhões) e B (Bilhões)
+    multiplier = 1.0
+    if 'M' in clean_value.upper():
+        multiplier = 1000000.0
+        clean_value = clean_value.upper().replace('M', '')
+    elif 'B' in clean_value.upper():
+        multiplier = 1000000000.0
+        clean_value = clean_value.upper().replace('B', '')
+    elif 'K' in clean_value.upper():
+        multiplier = 1000.0
+        clean_value = clean_value.upper().replace('K', '')
+
     try:
-        return float(clean_value)
+        return float(clean_value) * multiplier
     except ValueError:
         return 0.0
 
@@ -38,7 +51,7 @@ def get_fii_details(ticker, headers):
     detail_url = f"https://investidor10.com.br/fiis/{ticker.lower()}/"
     try:
         print(f"Processando {ticker}...")
-        res = requests.get(detail_url, headers=headers, timeout=10)
+        res = requests.get(detail_url, headers=headers, timeout=15)
         if res.status_code == 200:
             dsoup = BeautifulSoup(res.content, 'html.parser')
             
@@ -47,26 +60,12 @@ def get_fii_details(ticker, headers):
             if name_elem:
                 name = name_elem.text.strip()
             
-            sector = "Híbrido"
-            for item in dsoup.find_all(['div', 'span'], class_=['desc', 'value']):
-                parent = item.parent
-                if 'Setor' in parent.text or 'Segmento' in parent.text:
-                    sector = item.text.strip()
-                    break
-            
+            # 1. Capturar Dados Principais (Cards do Topo)
+            price = 0.0
             pvp = 0.0
             dy = 0.0
-            price = 0.0
-            vpa = 0.0
+            liquidity = 0.0
             
-            # Tentar capturar o preço de forma mais direta (o valor principal no topo)
-            price_box = dsoup.find('div', class_='cotacao')
-            if price_box:
-                val_span = price_box.find('span', class_='value')
-                if val_span:
-                    price = parse_br_number(val_span.text.strip())
-
-            # Se não achou no topo, tenta nos cards
             cards = dsoup.find_all('div', class_='_card')
             for card in cards:
                 title_elem = card.find('span', class_='_card-title') or card.find('span')
@@ -75,21 +74,39 @@ def get_fii_details(ticker, headers):
                     t_text = title_elem.text.upper()
                     v_text = value_elem.text.strip()
                     
-                    if 'P/VP' in t_text: pvp = parse_br_number(v_text)
-                    elif ('DIVIDEND' in t_text or 'DY' in t_text) and '12M' in t_text: dy = parse_br_number(v_text)
-                    elif ('COTAÇÃO' in t_text or 'PREÇO' in t_text) and price == 0: price = parse_br_number(v_text)
-                    elif 'VALOR PATRIMONIAL' in t_text: vpa = parse_br_number(v_text)
+                    if 'COTAÇÃO' in t_text: price = parse_br_number(v_text)
+                    elif 'P/VP' in t_text: pvp = parse_br_number(v_text)
+                    elif 'DY' in t_text: dy = parse_br_number(v_text)
+                    elif 'LIQUIDEZ' in t_text: liquidity = parse_br_number(v_text)
 
-            liquidity = 0.0
+            # 2. Capturar Dados Detalhados (Seção de Informações)
+            vpa = 0.0
             vacancy = 0.0
-            for desc in dsoup.find_all('div', class_='desc'):
+            sector = "Híbrido"
+            
+            # Procura por labels específicas em divs de descrição
+            descs = dsoup.find_all('div', class_='desc')
+            for desc in descs:
                 label = desc.find('span', class_='label')
-                val = desc.find('span', class_='value')
-                if label and val:
+                value = desc.find('span', class_='value')
+                if label and value:
                     l_text = label.text.upper()
-                    if 'LIQUIDEZ' in l_text: liquidity = parse_br_number(val.text)
-                    elif 'VACÂNCIA' in l_text: vacancy = parse_br_number(val.text)
-                    elif 'VALOR PATRIMONIAL' in l_text and vpa == 0: vpa = parse_br_number(val.text)
+                    if 'VACÂNCIA' in l_text:
+                        vacancy = parse_br_number(value.text)
+                    elif 'VAL. PATRIMONIAL P/ COTA' in l_text or 'VALOR PATRIMONIAL P/ COTA' in l_text:
+                        vpa = parse_br_number(value.text)
+                    elif 'SEGMENTO' in l_text or 'SETOR' in l_text:
+                        sector = value.text.strip()
+
+            # Fallback para Vacância e VPA se não achou via classes específicas
+            if vacancy == 0 or vpa == 0:
+                all_text = dsoup.get_text(separator=" ").upper()
+                if vacancy == 0:
+                    vac_match = re.search(r'VACÂNCIA\s*([\d,]+)%', all_text)
+                    if vac_match: vacancy = parse_br_number(vac_match.group(1))
+                if vpa == 0:
+                    vpa_match = re.search(r'VALOR PATRIMONIAL P/ COTA\s*R\$\s*([\d,.]+)', all_text)
+                    if vpa_match: vpa = parse_br_number(vpa_match.group(1))
 
             return {
                 "ticker": ticker,
@@ -113,11 +130,9 @@ def run_extraction():
     conn = get_connection()
     try:
         with conn.cursor() as cursor:
-            # 1. Buscar todos os tickers que já estão no banco para atualizar o preço
             cursor.execute("SELECT ticker FROM fiis")
             existing_tickers = [row[0] for row in cursor.fetchall()]
             
-            # 2. Buscar da fila
             cursor.execute("SELECT ticker FROM extraction_queue WHERE status = 'pending'")
             queued_tickers = [row[0] for row in cursor.fetchall()]
             
@@ -126,7 +141,7 @@ def run_extraction():
 
             for ticker in list(tickers_to_process):
                 data = get_fii_details(ticker, headers)
-                if data:
+                if data and data['price'] > 0:
                     cursor.execute("""
                         INSERT INTO fiis (ticker, name, sector, price, pvp, dy_12m, vacancy, liquidity, assets_count, dividends, vpa, updated_at)
                         VALUES (%(ticker)s, %(name)s, %(sector)s, %(price)s, %(pvp)s, %(dy_12m)s, %(vacancy)s, %(liquidity)s, %(assets_count)s, %(dividends)s, %(vpa)s, CURRENT_TIMESTAMP)
@@ -136,7 +151,7 @@ def run_extraction():
                             assets_count=VALUES(assets_count), dividends=VALUES(dividends), vpa=VALUES(vpa), updated_at=CURRENT_TIMESTAMP
                     """, data)
                     cursor.execute("DELETE FROM extraction_queue WHERE ticker = %s", (ticker,))
-                    print(f"Ticker {ticker} atualizado: R$ {data['price']}")
+                    print(f"Ticker {ticker} atualizado: R$ {data['price']} | Vac: {data['vacancy']}% | Liq: {data['liquidity']}")
                     time.sleep(1)
     finally:
         conn.close()
