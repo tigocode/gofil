@@ -79,26 +79,40 @@ def get_fii_details(ticker, headers):
                     elif 'DY' in t_text: dy = parse_br_number(v_text)
                     elif 'LIQUIDEZ' in t_text: liquidity = parse_br_number(v_text)
 
-            # 2. Capturar Dados Detalhados (Seção de Informações)
+            # 2. Capturar Dados Detalhados (Seção de Informações e Tabelas)
             vpa = 0.0
             vacancy = 0.0
             sector = "Híbrido"
             
-            # Procura por labels específicas em divs de descrição
+            # Estratégia: Procurar em todas as tabelas e linhas
+            rows = dsoup.find_all('tr')
+            for row in rows:
+                row_text = row.get_text(separator=" ").upper()
+                if 'VACÂNCIA' in row_text:
+                    cols = row.find_all('td')
+                    if len(cols) > 1:
+                        # Pega a primeira coluna de valor (Atual)
+                        vacancy = parse_br_number(cols[1].text)
+                elif 'VAL. PATRIMONIAL P/ COTA' in row_text or 'VALOR PATRIMONIAL P/ COTA' in row_text:
+                    cols = row.find_all('td')
+                    if len(cols) > 1:
+                        vpa = parse_br_number(cols[1].text)
+
+            # Fallback para divs de descrição (Informações sobre o FII)
             descs = dsoup.find_all('div', class_='desc')
             for desc in descs:
                 label = desc.find('span', class_='label')
                 value = desc.find('span', class_='value')
                 if label and value:
                     l_text = label.text.upper()
-                    if 'VACÂNCIA' in l_text:
+                    if 'VACÂNCIA' in l_text and vacancy == 0:
                         vacancy = parse_br_number(value.text)
-                    elif 'VAL. PATRIMONIAL P/ COTA' in l_text or 'VALOR PATRIMONIAL P/ COTA' in l_text:
+                    elif ('VAL. PATRIMONIAL P/ COTA' in l_text or 'VALOR PATRIMONIAL P/ COTA' in l_text) and vpa == 0:
                         vpa = parse_br_number(value.text)
                     elif 'SEGMENTO' in l_text or 'SETOR' in l_text:
                         sector = value.text.strip()
 
-            # Fallback para Vacância e VPA se não achou via classes específicas
+            # Fallback final via regex no texto bruto
             if vacancy == 0 or vpa == 0:
                 all_text = dsoup.get_text(separator=" ").upper()
                 if vacancy == 0:
