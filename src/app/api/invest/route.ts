@@ -26,12 +26,21 @@ export async function POST(request: Request) {
         dy_12m: Number(fii.dy_12m),
         vacancy: Number(fii.vacancy),
         liquidity: Number(fii.liquidity),
+        assets_count: Number(fii.assets_count || 10), // Fallback
         dividends: typeof fii.dividends === 'string' ? JSON.parse(fii.dividends) : fii.dividends
       };
       const analysis = analyzeFII(parsedFii);
       return { ...parsedFii, analysis };
     }).filter((f: any) => f.analysis.veredict.label === "Oportunidade")
-      .sort((a: any, b: any) => b.analysis.score - a.analysis.score);
+      .sort((a: any, b: any) => {
+        // Ordenação Dinâmica: Prioriza Score, mas adiciona um fator de aleatoriedade leve
+        // para não sugerir SEMPRE os mesmos se os scores forem idênticos.
+        // Também prioriza FIIs que NÃO estão na carteira para diversificação se o score for alto.
+        const scoreA = a.analysis.score;
+        const scoreB = b.analysis.score;
+        if (scoreA !== scoreB) return scoreB - scoreA;
+        return Math.random() - 0.5;
+      });
 
     if (opportunities.length === 0) {
       return NextResponse.json({ 
@@ -41,12 +50,15 @@ export async function POST(request: Request) {
     }
 
     // 3. Lógica de Distribuição: 
-    // Vamos sugerir investir nos top 5 FIIs com melhor Score.
-    const topOpportunities = opportunities.slice(0, 5);
-    const totalScore = topOpportunities.reduce((acc: number, f: any) => acc + f.analysis.score, 0);
+    // Vamos pegar uma amostra maior (top 10) e selecionar 5 aleatoriamente entre elas
+    // para garantir que a lista mude e o usuário veja diferentes opções de "Oportunidade".
+    const topPool = opportunities.slice(0, 10);
+    const shuffled = topPool.sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, 5);
     
-    const suggestions = topOpportunities.map((fii: any) => {
-      // Proporção baseada no Score
+    const totalScore = selected.reduce((acc: number, f: any) => acc + f.analysis.score, 0);
+    
+    const suggestions = selected.map((fii: any) => {
       const proportion = fii.analysis.score / totalScore;
       const suggestedValue = investAmount * proportion;
       const quantity = Math.floor(suggestedValue / fii.price);

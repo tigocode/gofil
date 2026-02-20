@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { FiiData } from '@/src/data/mocks';
 import FiiCard from '@/src/components/FiiCard';
 import FiiDetailsModal from '@/src/components/FiiDetailsModal';
-import { FaLayerGroup } from "react-icons/fa6"; 
+import { FaLayerGroup, FaClock } from "react-icons/fa6"; 
 
 const FILTERS = ["Todos", "Logística", "Shopping", "Papel", "Energia", "Híbrido"];
 
@@ -12,6 +12,7 @@ export default function DashboardPage() {
   const [activeFilter, setActiveFilter] = useState("Todos");
   const [searchText, setSearchText] = useState("");
   const [marketFiis, setMarketFiis] = useState<FiiData[]>([]);
+  const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedFii, setSelectedFii] = useState<FiiData | null>(null);
 
@@ -19,7 +20,13 @@ export default function DashboardPage() {
     try {
       const res = await fetch('/api/fiis');
       const data = await res.json();
-      if (Array.isArray(data)) {
+      
+      // Lidar com o novo formato da API { fiis, lastUpdate }
+      if (data.fiis && Array.isArray(data.fiis)) {
+        setMarketFiis(data.fiis);
+        setLastUpdate(data.lastUpdate);
+      } else if (Array.isArray(data)) {
+        // Fallback para o formato antigo
         setMarketFiis(data);
       }
     } catch (err) {
@@ -39,6 +46,18 @@ export default function DashboardPage() {
     return matchesFilter && matchesSearch;
   });
 
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "---";
+    const date = new Date(dateStr);
+    return date.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   return (
     <main className="min-h-screen p-6 md:p-10">
       {selectedFii && (
@@ -50,14 +69,23 @@ export default function DashboardPage() {
       )}
 
       <div className="max-w-7xl mx-auto">
-        <div className="mb-10">
-          <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-            Análise de FIIs <span className="text-blue-500">6 Pilares</span>
-          </h1>
-          <p className="text-slate-400 text-sm max-w-2xl flex items-center gap-2 mt-3">
-            <FaLayerGroup className="text-blue-500"/>
-            Algoritmo que analisa P/VP, Yield, Vacância, Liquidez, Diversificação e Consistência.
-          </p>
+        <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+              Análise de FIIs <span className="text-blue-500">6 Pilares</span>
+            </h1>
+            <p className="text-slate-400 text-sm max-w-2xl flex items-center gap-2 mt-3">
+              <FaLayerGroup className="text-blue-500"/>
+              Algoritmo que analisa P/VP, Yield, Vacância, Liquidez, Diversificação e Consistência.
+            </p>
+          </div>
+          
+          {lastUpdate && (
+            <div className="flex items-center gap-2 text-[10px] text-slate-500 bg-slate-800/30 px-3 py-1.5 rounded-full border border-slate-700/50">
+              <FaClock className="text-blue-500/70" />
+              <span>Última extração: <strong>{formatDate(lastUpdate)}</strong></span>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col md:flex-row gap-6 mb-10 justify-between items-start md:items-center">

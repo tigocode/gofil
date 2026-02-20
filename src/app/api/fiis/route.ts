@@ -4,6 +4,16 @@ import { query } from '@/src/lib/db';
 export async function GET() {
   try {
     const fiis: any = await query('SELECT * FROM fiis ORDER BY ticker ASC');
+    
+    // Pegar a data da última atualização entre todos os FIIs
+    let lastUpdate = null;
+    if (fiis.length > 0) {
+      const dates = fiis.map((f: any) => f.updated_at).filter(Boolean);
+      if (dates.length > 0) {
+        lastUpdate = new Date(Math.max(...dates.map((d: any) => new Date(d).getTime())));
+      }
+    }
+
     const parsedFiis = fiis.map((fii: any) => ({
       ...fii,
       price: Number(fii.price || 0),
@@ -15,7 +25,11 @@ export async function GET() {
       vpa: Number(fii.vpa || 0),
       dividends: typeof fii.dividends === 'string' ? JSON.parse(fii.dividends || '[]') : fii.dividends
     }));
-    return NextResponse.json(parsedFiis);
+
+    return NextResponse.json({
+      fiis: parsedFiis,
+      lastUpdate: lastUpdate ? lastUpdate.toISOString() : null
+    });
   } catch (error: any) {
     console.error('Erro ao buscar FIIs:', error);
     return NextResponse.json({ error: 'Erro ao buscar FIIs' }, { status: 500 });

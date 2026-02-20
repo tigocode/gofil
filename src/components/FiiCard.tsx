@@ -33,8 +33,8 @@ export default function FiiCard({ data, onClick }: FiiCardProps) {
   const pvpColor = analysis.pvpStatus === "Justo" ? "text-emerald-400" : analysis.pvpStatus === "Caro" ? "text-red-400" : "text-amber-400";
   
   let scoreBarColor = "bg-red-500";
-  if (analysis.score > 70) scoreBarColor = "bg-emerald-500";
-  else if (analysis.score > 40) scoreBarColor = "bg-amber-500";
+  if (analysis.score >= 80) scoreBarColor = "bg-emerald-500";
+  else if (analysis.score >= 50) scoreBarColor = "bg-amber-500";
 
   const getVeredictIcon = () => {
     if (analysis.veredict.label === "Oportunidade") return <FaThumbsUp />;
@@ -89,11 +89,11 @@ export default function FiiCard({ data, onClick }: FiiCardProps) {
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">P/VP</p>
-          <p className={`font-semibold text-sm ${pvpColor}`}>{data.pvp}</p>
+          <p className={`font-semibold text-sm ${pvpColor}`}>{data.pvp.toFixed(2)}</p>
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">DY (12m)</p>
-          <p className={`font-semibold text-sm ${dyColor}`}>{data.dy_12m}%</p>
+          <p className={`font-semibold text-sm ${dyColor}`}>{data.dy_12m.toFixed(2)}%</p>
         </div>
       </div>
 
