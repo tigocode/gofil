@@ -26,8 +26,16 @@ export default function CarteiraPage() {
       const fiisData = await fiisRes.json();
       const walletData = await walletRes.json();
 
-      if (Array.isArray(fiisData)) setMarketFiis(fiisData);
-      if (Array.isArray(walletData)) setWallet(walletData);
+      // Lidar com o novo formato da API { fiis, lastUpdate }
+      if (fiisData.fiis && Array.isArray(fiisData.fiis)) {
+        setMarketFiis(fiisData.fiis);
+      } else if (Array.isArray(fiisData)) {
+        setMarketFiis(fiisData);
+      }
+
+      if (Array.isArray(walletData)) {
+        setWallet(walletData);
+      }
     } catch (err) {
       console.error("Erro ao carregar dados:", err);
     } finally {
@@ -122,7 +130,7 @@ export default function CarteiraPage() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-white">Aporte Inteligente</h3>
-              <p className="text-xs text-slate-400">Sugestão baseada nos 6 pilares e melhores oportunidades.</p>
+              <p className="text-xs text-slate-400">Sugestão baseada nos 6 pilares e melhores oportunidades (FIIs Base 10).</p>
             </div>
           </div>
 
@@ -158,7 +166,7 @@ export default function CarteiraPage() {
                     <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-bold">Score {s.score}</span>
                   </div>
                   <p className="text-xs text-white font-bold mb-1">{s.suggestedQty} cotas</p>
-                  <p className="text-[10px] text-slate-500">Custo est: R$ {s.totalCost.toFixed(2)}</p>
+                  <p className="text-[10px] text-slate-500">Custo est: R$ {s.totalCost.toFixed(2)} (Preço: R$ {s.price.toFixed(2)})</p>
                   {s.isInWallet && <span className="text-[9px] text-yellow-500 font-bold mt-2 block">Já na carteira</span>}
                 </div>
               ))}
