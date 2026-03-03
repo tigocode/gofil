@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     // 3. Calcular Alvos de Balanceamento
     const walletTickers = new Set(wallet.map((w: any) => w.ticker));
     
-    // Pegar as 10 melhores oportunidades gerais para considerar novos aportes
+    // Pegar as top oportunidades (aumentado para 15 para maior diversidade)
     const topOpportunities = allOpportunities
       .sort((a: any, b: any) => {
         // Critério: Score alto + Preferência Base 10 como peso extra (+5 pontos)
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
         const scoreB = b.analysis.score + (b.price <= 10.50 ? 5 : 0);
         return scoreB - scoreA;
       })
-      .slice(0, 10);
+      .slice(0, 15);
 
     // Unir ativos da carteira com as top oportunidades
     const candidateTickers = new Set([...walletTickers, ...topOpportunities.map(o => o.ticker)]);
@@ -59,7 +59,8 @@ export async function POST(request: Request) {
       const fiiInfo = allOpportunities.find(o => o.ticker === ticker) || 
                       fiis.find((f: any) => f.ticker === ticker);
       
-      // Se não for oportunidade no momento, mas estiver na carteira, ainda precisamos considerar para balanceamento
+      if (!fiiInfo) return null;
+
       const analysis = fiiInfo?.analysis || analyzeFII({
         ...fiiInfo,
         price: Number(fiiInfo.price),
@@ -85,63 +86,80 @@ export async function POST(request: Request) {
         currentValue,
         isOpportunity: analysis.veredict.label === "Oportunidade"
       };
-    });
+    }).filter(c => c !== null);
 
     // Calcular valor total da carteira pós-aporte planejado
-    const currentTotalValue = candidates.reduce((acc, c) => acc + c.currentValue, 0);
+    const currentTotalValue = candidates.reduce((acc, c) => acc + (c?.currentValue || 0), 0);
     const projectedTotalValue = currentTotalValue + investAmount;
     
     // Definir Alvo: Cada candidato deveria idealmente ter uma fatia proporcional ao seu Score
-    const totalCandidateScore = candidates.reduce((acc, c) => acc + c.score, 0);
+    const totalCandidateScore = candidates.reduce((acc, c) => acc + (c?.score || 0), 0);
     
     const candidatesWithGaps = candidates.map(c => {
-      const idealProportion = c.score / totalCandidateScore;
+      const idealProportion = (c?.score || 0) / totalCandidateScore;
       const idealValue = projectedTotalValue * idealProportion;
-      const gapValue = Math.max(0, idealValue - c.currentValue); // Quanto falta para o ideal
+      const gapValue = Math.max(0, idealValue - (c?.currentValue || 0));
 
       return { ...c, gapValue };
-    }).filter(c => c.isOpportunity && c.gapValue > 0); // Só sugerir aporte em Oportunidades que estão abaixo do alvo
+    }).filter(c => c.isOpportunity && c.gapValue > 0);
 
     // 4. Lógica de Distribuição do Aporte Baseada no Gap (Balanceamento)
     const totalGap = candidatesWithGaps.reduce((acc, c) => acc + c.gapValue, 0);
     
-    if (totalGap === 0) {
-        // Fallback caso todos estejam acima do alvo: sugerir os top scores que sejam oportunidade
-        const fallbackSuggestions = topOpportunities.slice(0, 5).map(fii => {
-            const quantity = Math.floor((investAmount / 5) / fii.price);
-            return {
-                ticker: fii.ticker,
-                name: fii.name,
-                price: fii.price,
-                score: fii.analysis.score,
-                suggestedQty: quantity,
-                totalCost: quantity * fii.price,
-                isInWallet: walletTickers.has(fii.ticker)
-            };
-        }).filter(s => s.suggestedQty > 0);
+    let finalSuggestions: any[] = [];
 
-        return NextResponse.json({ investAmount, suggestions: fallbackSuggestions });
+    if (totalGap > 0) {
+      finalSuggestions = candidatesWithGaps.map(c => {
+        const proportionOfAport = c.gapValue / totalGap;
+        const suggestedValue = investAmount * proportionOfAport;
+        const quantity = Math.floor(suggestedValue / (c?.price || 1));
+        const totalCost = quantity * (c?.price || 0);
+        
+        return {
+          ticker: c.ticker,
+          name: c.name,
+          price: c.price,
+          score: c.score,
+          suggestedQty: quantity,
+          totalCost: totalCost,
+          isInWallet: walletTickers.has(c.ticker)
+        };
+      })
+      .filter(s => s.suggestedQty > 0);
     }
 
-    const suggestions = candidatesWithGaps.map(c => {
-      const proportionOfAport = c.gapValue / totalGap;
-      const suggestedValue = investAmount * proportionOfAport;
-      const quantity = Math.floor(suggestedValue / c.price);
-      const totalCost = quantity * c.price;
-      
-      return {
-        ticker: c.ticker,
-        name: c.name,
-        price: c.price,
-        score: c.score,
-        suggestedQty: quantity,
-        totalCost: totalCost,
-        isInWallet: walletTickers.has(c.ticker)
-      };
-    })
-    .filter(s => s.suggestedQty > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 8);
+    // Se as sugestões de balanceamento não consumirem todo o aporte ou não existirem, 
+    // complementamos com as melhores oportunidades que ainda cabem no aporte restante
+    const currentCost = finalSuggestions.reduce((acc, s) => acc + s.totalCost, 0);
+    let remainingAmount = investAmount - currentCost;
+
+    if (remainingAmount > 5) { // Se sobrar mais que o preço médio de uma cota barata
+      const potentialAdds = topOpportunities
+        .filter(o => !finalSuggestions.some(s => s.ticker === o.ticker))
+        .sort((a, b) => b.analysis.score - a.analysis.score);
+
+      for (const opt of potentialAdds) {
+        if (remainingAmount <= 0) break;
+        const qty = Math.floor(remainingAmount / opt.price);
+        if (qty > 0) {
+          finalSuggestions.push({
+            ticker: opt.ticker,
+            name: opt.name,
+            price: opt.price,
+            score: opt.analysis.score,
+            suggestedQty: qty,
+            totalCost: qty * opt.price,
+            isInWallet: walletTickers.has(opt.ticker)
+          });
+          remainingAmount -= qty * opt.price;
+        }
+      }
+    }
+
+    // Ordenar por Score e limitar a exibição
+    const suggestions = finalSuggestions
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
 
     return NextResponse.json({
       investAmount,
